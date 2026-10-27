@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>HayKeys — установка армянской клавиатуры на iPhone</title><style>
+:root {color-scheme:light;--ink:#262338;--muted:#69637d;--accent:#5943bb;--line:#e5e1ef;--surface:#fff;--bg:#f5f3f9}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.65}a{color:var(--accent);overflow-wrap:anywhere}a:hover{text-decoration-thickness:2px}.shell{max-width:1120px;margin:0 auto;padding:42px 26px 80px}.topline{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:22px}.brand{font-size:19px;font-weight:700;color:var(--accent)}.badge{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:4px 11px}.grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:34px;align-items:start}aside{position:sticky;top:26px;border:1px solid var(--line);border-radius:16px;background:#faf9fd;padding:16px;font-size:13px;line-height:1.5}aside h2{margin:0 0 10px;font-size:13px;color:var(--muted);letter-spacing:.02em}aside ul{list-style:none;margin:0;padding:0}aside li{margin:9px 0}aside li ul{padding-left:13px;font-size:12px}aside a{text-decoration:none}.content{min-width:0;background:var(--surface);padding:34px;border:1px solid var(--line);border-radius:24px;box-shadow:0 8px 30px #2a174c05}h1{font-size:34px;line-height:1.2;letter-spacing:-.6px;margin:0 0 20px}h2{font-size:23px;line-height:1.3;margin:38px 0 16px;padding-top:8px;border-top:1px solid var(--line)}h3{font-size:18px;line-height:1.4;margin:28px 0 12px}p{margin:0 0 15px}li{padding-left:3px;margin:5px 0}ol,ul{padding-left:23px;margin:10px 0 18px}strong{font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f0edf7;border-radius:4px;padding:2px 4px;font-size:.88em;overflow-wrap:anywhere}pre{background:#252035;color:#f6f2ff;border-radius:12px;padding:18px;overflow:auto}pre code{background:none;color:inherit;padding:0;overflow-wrap:normal}table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:18px 0 24px;font-size:14px}th,td{border:1px solid var(--line);padding:10px 12px;vertical-align:top}th{text-align:left;background:#f6f4fb}td:first-child{min-width:100px}.keyboard{max-width:440px;margin:auto;padding:8px 5px;background:#d2d4d8;border-radius:12px;box-shadow:inset 0 0 0 1px #c8cbd0}.keyrow{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;margin-bottom:6px}.key{display:flex;min-width:0;height:43px;align-items:center;justify-content:center;background:white;border-radius:5px;box-shadow:0 1px 0 #a4a7ad;font-size:23px;line-height:1;color:#13151c}.key.special{background:#adb2b9;font-size:20px}.bottom{grid-template-columns:1fr 2fr 1fr;grid-auto-columns:initial;margin-bottom:0}.space{font-size:12px;color:#86818d}.quick{display:flex;justify-content:space-around;padding:0 0 9px;font-size:17px;color:#36363c}.layout-figure{margin:20px 0 28px;padding:18px;background:#f7f6fa;border-radius:14px}.layout-figure figcaption{font-size:12px;line-height:1.5;color:var(--muted);margin:12px 0 0}.footer{margin-top:30px;font-size:12px;color:var(--muted)}
+@media(max-width:850px){.shell{padding:20px 14px 50px}.grid{display:block}aside{position:static;margin-bottom:20px}aside li ul{display:none}aside ul{display:flex;flex-wrap:wrap;gap:0 16px}aside li{margin:5px 0}.content{padding:24px}.topline{margin-bottom:16px}h1{font-size:29px}}
+@media(max-width:430px){body{font-size:15px}.content{padding:20px 16px;border-radius:16px}h1{font-size:27px}h2{font-size:22px}.keyrow{gap:3px}.key{height:39px;font-size:21px;border-radius:4px}.layout-figure{padding:12px 5px}.badge{font-size:10px;padding:3px 8px}.content>p:nth-of-type(2){padding:12px;border-left:3px solid var(--accent);background:#f5f1ff}}
+@media print{body{background:white;font-size:11pt}.shell{max-width:none;padding:0}.grid{display:block}aside,.topline{display:none}.content{padding:0;border:0;box-shadow:none}h2,h3{break-after:avoid}table,pre,.layout-figure{break-inside:avoid}a{color:inherit}h1{font-size:26pt}}
+</style></head><body><div class="shell"><header class="topline"><span class="brand">Հ · HayKeys</span><span class="badge">iPhone · Swift / UIKit · 27.10.2026</span></header><div class="grid"><aside aria-label="Содержание"><h2>Содержание</h2><div class="toc">
+<ul>
+<li><a href="#_1">Что реализовано</a></li>
+<li><a href="#_2">Раскладка</a></li>
+<li><a href="#mac">Установка без собственного Mac</a><ul>
+<li><a href="#1-ipa-github">1. Соберите IPA на GitHub</a></li>
+<li><a href="#2-ubuntu-sidestore">2. Подготовьте Ubuntu и SideStore</a></li>
+<li><a href="#3-sidestore-iphone">3. Завершите настройку SideStore на iPhone</a></li>
+<li><a href="#4-haykeys">4. Установите HayKeys</a></li>
+<li><a href="#5-7">5. Продлевайте подпись до истечения 7 дней</a></li>
+<li><a href="#_3">Если достаточно готовой клавиатуры</a></li>
+<li><a href="#_4">Источники</a></li>
+</ul>
+</li>
+<li><a href="#xcode-mac">Локальная установка через Xcode, если есть доступ к Mac</a><ul>
+<li><a href="#1-mac">1. Подготовьте Mac</a></li>
+<li><a href="#2">2. Откройте проект</a></li>
+<li><a href="#3-targets">3. Настройте подпись для двух targets</a></li>
+<li><a href="#4-iphone">4. Подключите iPhone</a></li>
+<li><a href="#5">5. Установите приложение</a></li>
+<li><a href="#6-ios">6. Добавьте клавиатуру в iOS</a></li>
+<li><a href="#7">7. Продлевайте бесплатную подпись</a></li>
+</ul>
+</li>
+<li><a href="#_5">Проверка и известные ограничения</a></li>
+<li><a href="#-">Если что-то не получилось</a></li>
+<li><a href="#_6">Файлы проекта</a></li>
+<li><a href="#apple">Документация Apple</a></li>
+</ul>
+</div>
+</aside><main class="content"><h1 id="haykeys-iphone">HayKeys: армянская клавиатура для iPhone</h1>
+<p>Проект содержит приложение HayKeys и системное расширение клавиатуры на Swift / UIKit. Расположение букв перенесено с вашего скриншота. Приложение содержит инструкцию и поле для проверки ввода. Минимальная версия системы в проекте — iOS 16.</p>
+<p><strong>Собственный Mac не обязателен: добавлены сборка через GitHub Actions и установка с Ubuntu через SideStore. Бесплатную подпись нужно продлевать до истечения 7 дней. Покупать Apple Developer Program для установки на свой телефон не требуется.</strong></p>
+<p>При отсутствии Mac начните с раздела «Установка без собственного Mac» ниже или файла <code>INSTALL_NO_MAC_RU.md</code>. Сервер GitHub собирает неподписанный IPA, а SideStore подписывает его вашим Apple Account. Готовый IPA здесь ещё не собран: запуск workflow предстоит выполнить в вашем GitHub. Локальная сборка через Xcode доступна на macOS. ZIP и HTML-страница сами по себе не устанавливают клавиатуру на iPhone.</p>
+<h2 id="_1">Что реализовано</h2>
+<ul>
+<li>Четыре ряда из образца: все 38 отдельных армянских букв, включая <code>ւ</code>, <code>օ</code>, <code>ֆ</code>.</li>
+<li>Быстрые кнопки <code>և</code>, <code>ու</code>, <code>։</code>, если нет подходящих словарных подсказок.</li>
+<li>Удержание <code>ե</code> вводит <code>և</code>, удержание <code>ւ</code> вводит <code>ու</code>. Это работает и когда верхняя панель занята подсказками.</li>
+<li>Shift для одной заглавной буквы, двойной Shift для Caps Lock.</li>
+<li>Удаление с повтором при удержании, пробел, ввод, цифры и символы, включая <code>֏</code>.</li>
+<li>Перемещение курсора: удерживайте пробел около 0,35 секунды и двигайте палец влево или вправо.</li>
+<li>Кнопка переключения клавиатур через системный список, когда iOS требует её показывать; кнопка скрытия клавиатуры.</li>
+<li>Светлое и тёмное оформление, изменение высоты при повороте iPhone.</li>
+<li>Простые подсказки по префиксу из небольшого встроенного словаря. Подсказка вводится только после нажатия. Автозамены, обучения и свайп-ввода нет.</li>
+<li>Работа без сети и «Полного доступа»: <code>RequestsOpenAccess = false</code>. Нет аналитики, сохранения набранного текста и сторонних библиотек.</li>
+</ul>
+<p>Диктовка внутри расширения не реализована. Для голосового ввода переключайтесь на системную клавиатуру. iOS может показывать собственные дополнительные кнопки под расширением, поэтому нижняя область зависит от устройства и версии системы.</p>
+<figure class="layout-figure"><div class="keyboard"><div class="quick"><span>և</span><span>ու</span><span>։</span></div><div class="keyrow"><span class="key">՝</span><span class="key">։</span><span class="key">ձ</span><span class="key">յ</span><span class="key">-</span><span class="key">՛</span><span class="key">՜</span><span class="key">՞</span><span class="key">,</span><span class="key">օ</span><span class="key">ռ</span><span class="key">ժ</span></div><div class="keyrow"><span class="key">խ</span><span class="key">վ</span><span class="key">է</span><span class="key">ր</span><span class="key">դ</span><span class="key">ե</span><span class="key">ը</span><span class="key">ի</span><span class="key">ո</span><span class="key">բ</span><span class="key">չ</span><span class="key">ջ</span></div><div class="keyrow"><span class="key">ա</span><span class="key">ս</span><span class="key">տ</span><span class="key">ֆ</span><span class="key">կ</span><span class="key">հ</span><span class="key">ճ</span><span class="key">ք</span><span class="key">լ</span><span class="key">թ</span><span class="key">փ</span></div><div class="keyrow"><span class="key special">⇧</span><span class="key">զ</span><span class="key">ց</span><span class="key">գ</span><span class="key">ւ</span><span class="key">պ</span><span class="key">ն</span><span class="key">մ</span><span class="key">շ</span><span class="key">ղ</span><span class="key">ծ</span><span class="key special">⌫</span></div><div class="keyrow bottom"><span class="key special">123</span><span class="key space">пробел</span><span class="key special">տող</span></div></div><figcaption>Схема расположения клавиш. Это иллюстрация к инструкции, не снимок запуска на iPhone.</figcaption></figure><h2 id="_2">Раскладка</h2>
+<p>Пробелы в таблице отделяют клавиши. <code>⇧</code> и <code>⌫</code> — управляющие кнопки.</p>
+<table>
+<thead>
+<tr>
+<th>Ряд</th>
+<th>Клавиши слева направо</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>՝ ։ ձ յ - ՛ ՜ ՞ , օ ռ ժ</td>
+</tr>
+<tr>
+<td>2</td>
+<td>խ վ է ր դ ե ը ի ո բ չ ջ</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ա ս տ ֆ կ հ ճ ք լ թ փ</td>
+</tr>
+<tr>
+<td>4</td>
+<td>⇧ զ ց գ ւ պ ն մ շ ղ ծ ⌫</td>
+</tr>
+<tr>
+<td>5</td>
+<td>123 · пробел · տող</td>
+</tr>
+</tbody>
+</table>
+<p>Знаки <code>։</code> и <code>՝</code> — армянские знаки пунктуации. Первая клавиша — <code>՝</code> U+055D, вторая — <code>։</code> U+0589; отдельная обычная запятая <code>,</code> находится в том же верхнем ряду. Быстрая кнопка <code>ու</code> вводит две буквы, а <code>և</code> — символ U+0587.</p>
+<h2 id="mac">Установка без собственного Mac</h2>
+<p>Полная инструкция для Ubuntu, GitHub Actions и SideStore приведена ниже. Если используете Markdown-файл, можно открыть отдельный <code>INSTALL_NO_MAC_RU.md</code>.</p>
+<p>Нужны Ubuntu с USB-портом, iPhone, Wi-Fi, аккаунты GitHub и Apple Account. Проект собирает macOS-сервер GitHub Actions. Затем SideStore подписывает IPA вашим аккаунтом и устанавливает его. Локально Xcode на Ubuntu не запускается.</p>
+<p>Этот путь подготовлен по документации GitHub и SideStore, но весь процесс с этим проектом ещё не выполнен: облачная сборка и установка на iPhone пока не проверены.</p>
+<h3 id="1-ipa-github">1. Соберите IPA на GitHub</h3>
+<ol>
+<li>Распакуйте архив. Рабочая папка называется <code>HayKeys</code>.</li>
+<li>На GitHub создайте репозиторий, например <code>haykeys</code>. Для бесплатных стандартных runners выберите <strong>Public</strong>: исходники станут общедоступными. Можно включить создание README при создании репозитория.</li>
+<li>Нажмите <strong>Add file → Upload files</strong> и загрузите <strong>содержимое</strong> папки <code>HayKeys</code>. В корне репозитория должны оказаться <code>App</code>, <code>Core</code>, <code>Keyboard</code>, <code>scripts</code>, <code>Tests</code>, <code>Config</code>, <code>HayKeys.xcodeproj</code> и остальные файлы. Загружать только ZIP не нужно: GitHub его не распакует.</li>
+<li>В репозитории должен быть файл <strong><code>.github/workflows/build-ipa.yml</code></strong> из архива. Если он не попал в загрузку, нажмите <strong>Add file → Create new file</strong>, задайте этот путь и вставьте содержимое одноимённого файла из проекта. Сохраните в основной ветке.</li>
+<li>Откройте <strong>Actions → Build HayKeys IPA → Run workflow</strong>. Если GitHub попросит включить Actions, включите их. В ветке <code>main</code> сборка также запускается после загрузки файлов автоматически.</li>
+<li>Дождитесь зелёного статуса. Workflow сначала проверяет логику клавиатуры, затем собирает приложение и расширение для реального iPhone.</li>
+<li>Внизу страницы запуска, в разделе <strong>Artifacts</strong>, скачайте <strong>HayKeys-unsigned-IPA</strong>. Распакуйте загруженный ZIP: внутри будет <strong>HayKeys-unsigned.ipa</strong>.</li>
+</ol>
+<p>Для GitHub Actions не нужны пароль Apple Account, сертификаты или платный аккаунт Apple Developer. Workflow выполняет сборку без подписи. Для публичного репозитория со стандартным runner GitHub не взимает плату за время сборки. Артефакт хранится 3 дня; в проекте не используются платные larger runners.</p>
+<p>Если сборка красная, откройте упавший шаг. IPA появится только после успешной сборки. Не продолжайте установку с другим случайным IPA. В этом случае нужен фактический текст ошибки GitHub Actions.</p>
+<h3 id="2-ubuntu-sidestore">2. Подготовьте Ubuntu и SideStore</h3>
+<ol>
+<li>Установите поддержку подключения iPhone:</li>
+</ol>
+<pre><code class="language-bash">sudo apt update
+sudo apt install usbmuxd
+</code></pre>
+<ol start="2">
+<li>На <a href="https://iloader.app/">https://iloader.app/</a> выберите <strong>Linux (x86_64) → Ubuntu/Debian (.deb)</strong>. После скачивания откройте терминал в папке с файлом и выполните:</li>
+</ol>
+<pre><code class="language-bash">sudo apt install ./iloader-linux-amd64.deb
+</code></pre>
+<ol start="3">
+<li>На iPhone установите бесплатный <a href="https://apps.apple.com/app/localdevvpn/id6755608044">LocalDevVPN</a>. Подключитесь к Wi-Fi. Подключите телефон кабелем к Ubuntu, разблокируйте его и подтвердите доверие компьютеру.</li>
+<li>Запустите <strong>iloader</strong>, войдите в Apple Account, выберите телефон и нажмите <strong>Install SideStore (Stable)</strong>.</li>
+</ol>
+<p>Пароль Apple Account вводится в инструменты установки, а не в GitHub. Файлы сопряжения телефона и сертификаты в публичный репозиторий не загружайте.</p>
+<p>Официальная инструкция подготовки Linux: <a href="https://docs.sidestore.io/docs/installation/prerequisites">https://docs.sidestore.io/docs/installation/prerequisites</a>.</p>
+<h3 id="3-sidestore-iphone">3. Завершите настройку SideStore на iPhone</h3>
+<ol>
+<li>Откройте <strong>Настройки → Основные → VPN и управление устройством</strong>, выберите профиль своего Apple Account и подтвердите доверие. На новых iOS система может показать <strong>«Разрешить и перезагрузить»</strong>; подтвердите и введите код телефона.</li>
+<li>Включите <strong>Настройки → Конфиденциальность и безопасность → Режим разработчика</strong>. После перезагрузки подтвердите включение.</li>
+<li>В <strong>LocalDevVPN</strong> нажмите <strong>Connect</strong>.</li>
+<li>Откройте <strong>SideStore</strong> и войдите в тот же Apple Account, который использовали в iloader.</li>
+<li>В <strong>My Apps</strong> нажмите счётчик дней около SideStore, чтобы проверить продление его подписи.</li>
+</ol>
+<p>Точные шаги по версиям iOS: <a href="https://docs.sidestore.io/docs/installation/install">https://docs.sidestore.io/docs/installation/install</a>.</p>
+<h3 id="4-haykeys">4. Установите HayKeys</h3>
+<ol>
+<li>Сохраните <strong>HayKeys-unsigned.ipa</strong> в приложение <strong>«Файлы»</strong> на iPhone. Например, откройте GitHub Actions в Safari, войдите в свой GitHub и скачайте Artifact прямо на телефоне; ZIP можно распаковать нажатием в «Файлах».</li>
+<li>С подключёнными Wi-Fi и LocalDevVPN откройте <strong>SideStore → My Apps → +</strong>, выберите IPA и дождитесь подписания и установки.</li>
+<li>Если установщик предложит удалить расширения приложения, <strong>оставьте HayKeysKeyboard.appex</strong>. В нём находится клавиатура; установка только основного приложения не даст возможности печатать в других приложениях.</li>
+<li>Откройте HayKeys. Затем перейдите в <strong>Настройки → Основные → Клавиатура → Клавиатуры → Новые клавиатуры</strong> и добавьте <strong>HayKeys Armenian</strong>. Полный доступ не нужен.</li>
+<li>Откройте «Заметки», нажмите текстовое поле, удерживайте <strong>🌐</strong> и выберите <strong>HayKeys Armenian</strong>.</li>
+</ol>
+<p>Неподписанный IPA сам по себе не устанавливается нажатием в «Файлах». Подпись создаёт SideStore во время установки. Внешний вид и названия элементов SideStore могут отличаться между версиями.</p>
+<h3 id="5-7">5. Продлевайте подпись до истечения 7 дней</h3>
+<p>У бесплатного аккаунта остаётся срок подписи <strong>7 дней</strong>. До его истечения включите Wi-Fi и LocalDevVPN, откройте SideStore и обновите <strong>HayKeys и сам SideStore</strong> в My Apps. Повторная облачная сборка для обычного продления не нужна. Если подпись SideStore уже истекла, может потребоваться повторная установка через iloader с Ubuntu.</p>
+<p>Лимиты бесплатного аккаунта: до 3 активных установленных таким способом приложений, включая SideStore, и до 10 App IDs за 7 дней. Расширения требуют App IDs. Детали: <a href="https://docs.sidestore.io/docs/faq">https://docs.sidestore.io/docs/faq</a>.</p>
+<h3 id="_3">Если достаточно готовой клавиатуры</h3>
+<p>В армянском App Store есть бесплатная <a href="https://apps.apple.com/am/app/armenian-keyboard/id6753932933">Armenian Keyboard+</a> с Eastern и Western Armenian. Она не требует Mac и еженедельной переподписи через SideStore. Точное совпадение её текущей раскладки со скриншотом не подтверждено.</p>
+<p>Установите приложение, затем добавьте его в <strong>Настройки → Основные → Клавиатура → Клавиатуры → Новые клавиатуры</strong> и выберите через 🌐. По описанию разработчика, полный доступ не требуется.</p>
+<h3 id="_4">Источники</h3>
+<p>Проверены 27 октября 2026 года:</p>
+<ul>
+<li>GitHub: бесплатное время стандартных runners для публичных репозиториев — <a href="https://docs.github.com/en/billing/concepts/product-billing/github-actions">https://docs.github.com/en/billing/concepts/product-billing/github-actions</a></li>
+<li>Workflow artifacts — <a href="https://docs.github.com/en/actions/tutorials/store-and-share-data">https://docs.github.com/en/actions/tutorials/store-and-share-data</a></li>
+<li>Требования и подготовка SideStore — <a href="https://docs.sidestore.io/docs/installation/prerequisites">https://docs.sidestore.io/docs/installation/prerequisites</a></li>
+<li>Установка SideStore — <a href="https://docs.sidestore.io/docs/installation/install">https://docs.sidestore.io/docs/installation/install</a></li>
+<li>Ограничения SideStore — <a href="https://docs.sidestore.io/docs/faq">https://docs.sidestore.io/docs/faq</a></li>
+<li>Официальный iloader — <a href="https://iloader.app/">https://iloader.app/</a></li>
+</ul>
+<h2 id="xcode-mac">Локальная установка через Xcode, если есть доступ к Mac</h2>
+<h3 id="1-mac">1. Подготовьте Mac</h3>
+<ol>
+<li>Установите Xcode из Mac App Store. Официальная страница: <a href="https://developer.apple.com/xcode/">https://developer.apple.com/xcode/</a>.</li>
+<li>Откройте Xcode и завершите первичную настройку. Если предложит установить компоненты iOS, установите их.</li>
+<li>Версия Xcode должна поддерживать iOS вашего iPhone. Если система телефона новее поддерживаемой версии, потребуется обновление Xcode и, возможно, macOS.</li>
+<li>В меню <strong>Xcode → Settings → Accounts / Apple Accounts</strong> добавьте свой Apple Account. Если платной подписки разработчика нет, Xcode покажет <strong>Personal Team</strong>. Примите соглашение разработчика, если Apple его предложит.</li>
+</ol>
+<h3 id="2">2. Откройте проект</h3>
+<ol>
+<li>Распакуйте ZIP на Mac, например в <code>Downloads</code>.</li>
+<li>В распакованной папке <code>HayKeys</code> дважды нажмите <strong>HayKeys.xcodeproj</strong>.</li>
+<li>Откройте <code>Config/Personal.xcconfig</code> в левом списке файлов Xcode.</li>
+<li>Замените <code>com.alik.haykeys</code> своим идентификатором, если он уже занят. Пример формы: <code>com.yourname.haykeys123</code>. Используйте латинские буквы, цифры и точки. Никаких доменов покупать не нужно.</li>
+</ol>
+<pre><code class="language-xcconfig">HAYKEYS_BUNDLE_ID = com.yourname.haykeys123
+</code></pre>
+<p>Меняйте только значение <code>HAYKEYS_BUNDLE_ID</code> в этом файле. Идентификатор приложения возьмёт это значение, а идентификатор расширения автоматически получит суффикс <code>.keyboard</code>. Это сохраняет необходимую связь между ними.</p>
+<h3 id="3-targets">3. Настройте подпись для двух targets</h3>
+<ol>
+<li>Нажмите синий значок проекта <strong>HayKeys</strong> в левом списке Xcode.</li>
+<li>В разделе <strong>TARGETS</strong> выберите <strong>HayKeys</strong>.</li>
+<li>Откройте <strong>Signing &amp; Capabilities</strong>.</li>
+<li>Включите <strong>Automatically manage signing</strong> и выберите свою <strong>Personal Team</strong> в поле <strong>Team</strong>.</li>
+<li>Повторите те же действия для второго target: <strong>HayKeysKeyboard</strong>.</li>
+<li>Дождитесь, пока Xcode создаст профили подписи. Для этого на Mac нужен интернет.</li>
+</ol>
+<p>При ошибке <code>Signing requires a development team</code> команда не выбрана для одного из targets. При <code>Bundle Identifier is not available</code> поменяйте значение в <code>Config/Personal.xcconfig</code>, затем повторите сборку. Платные возможности и App Groups подключать не нужно.</p>
+<h3 id="4-iphone">4. Подключите iPhone</h3>
+<ol>
+<li>Подключите iPhone к Mac USB-кабелем и разблокируйте его.</li>
+<li>Если появится вопрос «Доверять этому компьютеру?», нажмите <strong>Доверять</strong> и введите код телефона.</li>
+<li>Выберите iPhone в списке устройств рядом со схемой запуска вверху Xcode. Если его нет, откройте <strong>Device Hub</strong>; в старых Xcode это <strong>Window → Devices and Simulators</strong>. Дождитесь завершения сопряжения и подготовки.</li>
+<li>На iPhone откройте <strong>Настройки → Конфиденциальность и безопасность → Режим разработчика</strong>.</li>
+<li>Включите режим, перезагрузите iPhone и после перезагрузки подтвердите включение.</li>
+</ol>
+<p>Если пункта «Режим разработчика» нет, сначала начните сопряжение телефона с Xcode. По документации Apple этот пункт появляется после начала сопряжения или если телефон ранее был сопряжён с Mac.</p>
+<h3 id="5">5. Установите приложение</h3>
+<ol>
+<li>В верхней панели Xcode выберите схему <strong>HayKeys</strong>, а устройством запуска — свой физический <strong>iPhone</strong>. Не выбирайте HayKeysKeyboard как основную схему установки.</li>
+<li>Нажмите <strong>▶ Run</strong> или <strong>⌘R</strong>.</li>
+<li>Дождитесь сборки. На iPhone должно запуститься приложение <strong>HayKeys</strong>. Расширение клавиатуры устанавливается внутри него.</li>
+<li>Если iOS отдельно попросит довериться разработчику, откройте <strong>Настройки → Основные → VPN и управление устройством</strong>, выберите свой профиль разработчика и подтвердите доверие. Этот дополнительный шаг нужен только если система его запрашивает.</li>
+</ol>
+<h3 id="6-ios">6. Добавьте клавиатуру в iOS</h3>
+<ol>
+<li>На iPhone откройте <strong>Настройки → Основные → Клавиатура → Клавиатуры → Новые клавиатуры</strong>. В некоторых переводах последний пункт называется «Добавить новую клавиатуру».</li>
+<li>В разделе сторонних клавиатур выберите <strong>HayKeys Armenian</strong>.</li>
+<li>«Полный доступ» для этого проекта не нужен. Переключателя может не быть, поскольку расширение его не запрашивает.</li>
+<li>Откройте приложение «Заметки» или поле проверки в HayKeys и нажмите в текстовое поле.</li>
+<li>Удерживайте <strong>🌐</strong> на текущей клавиатуре и выберите <strong>HayKeys Armenian</strong>.</li>
+<li>Напишите <code>Բարև, շնորհակալություն։</code>, затем проверьте Shift, удаление и переключение обратно через 🌐.</li>
+</ol>
+<p>После установки Mac не нужен для повседневного ввода. Он понадобится для следующего продления подписи.</p>
+<h3 id="7">7. Продлевайте бесплатную подпись</h3>
+<p>Профиль Personal Team истекает через <strong>7 дней с момента выдачи</strong>. После истечения приложение и расширение могут перестать запускаться.</p>
+<p>Для продления подключите тот же iPhone к Mac, откройте тот же проект с тем же Apple Account и идентификатором, затем снова нажмите <strong>⌘R</strong>. Удалять приложение заранее не нужно. Не меняйте идентификатор каждую неделю: это создаёт лишние App IDs.</p>
+<p>Apple также ограничивает Personal Team количеством приложений, устройств и App IDs. Если Xcode сообщит о лимите, проверьте текущие бесплатные установки и срок действия регистраций по ссылке Apple внизу. Отдельного бесплатного режима «установить навсегда» у этого способа нет.</p>
+<h2 id="_5">Проверка и известные ограничения</h2>
+<p>В среде, где подготовлен архив, нет macOS, Xcode, iOS SDK и подключённого iPhone. Проверены синтаксическая структура Swift отдельным парсером, формат Xcode-проекта, ссылки на исходники и ресурсы, plist и соответствие набора букв. <strong>Сборка Apple Swift-компилятором, запуск модульных проверок Swift, симулятор и ввод на физическом iPhone здесь не выполнялись.</strong> Отсутствие синтаксических ошибок не подтверждает успешную сборку или работу интерфейса на устройстве.</p>
+<p>Также проверены формат workflow и синтаксис shell-скриптов облачной сборки. Сам workflow ещё не запускался: результат его выполнения появится после загрузки проекта в ваш GitHub. Установка и продление через SideStore на вашем iPhone не проверены.</p>
+<p>На Mac можно выполнить проверку ядра и сборку для симулятора без подписи:</p>
+<pre><code class="language-bash">cd ~/Downloads/HayKeys
+bash scripts/check_macos.sh
+</code></pre>
+<p>Если папка распакована в другое место, укажите её фактический путь. Команда запускает проверки в <code>Tests/main.swift</code>, затем собирает оба targets через <code>xcodebuild</code>. При ошибке исправление нужно делать по фактическому выводу Xcode; успешный результат скрипта также не заменяет проверку на телефоне.</p>
+<p>Краткая ручная проверка после сборки:</p>
+<ol>
+<li>Убедитесь, что клавиатура появляется в «Заметках» и в поле HayKeys без «Полного доступа».</li>
+<li>Проверьте <code>բ</code> во втором ряду, <code>պ</code> в четвёртом, отдельную <code>ւ</code>, быстрые <code>և</code> и <code>ու</code>, удержание <code>ե</code> и <code>ւ</code>.</li>
+<li>Проверьте однократный Shift, двойной Shift и выход из Caps Lock.</li>
+<li>Зажмите удаление, отпустите палец и убедитесь, что удаление прекратилось.</li>
+<li>Проверьте цифры, символы и возврат через <code>ԱԲԳ</code>.</li>
+<li>Попробуйте подсказки после <code>շնոր</code>, поворот iPhone и тёмную тему.</li>
+<li>Переключитесь через 🌐 на другую клавиатуру и обратно.</li>
+</ol>
+<p>В полях паролей и некоторых полях телефона iOS использует системную клавиатуру. Приложение также может запрещать сторонние клавиатуры. Это предусмотренное поведение платформы.</p>
+<p>Подсказки ограничены встроенным списком слов. Автоматический выбор регистра в начале предложения, исправление ошибок, словарь уровня Gboard и собственная диктовка не реализованы. Клавиши и нижняя системная область могут выглядеть иначе, чем на исходном скриншоте; порядок букв сохранён.</p>
+<h2 id="-">Если что-то не получилось</h2>
+<table>
+<thead>
+<tr>
+<th>Ситуация</th>
+<th>Что сделать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>iPhone отсутствует в Xcode</td>
+<td>Разблокировать телефон, подтвердить доверие, проверить кабель и сопряжение в Device Hub.</td>
+</tr>
+<tr>
+<td>Developer Mode disabled</td>
+<td>Включить режим разработчика на iPhone и подтвердить его после перезагрузки.</td>
+</tr>
+<tr>
+<td>iOS телефона не поддерживается</td>
+<td>Обновить Xcode до версии с поддержкой этой iOS; при необходимости обновить macOS.</td>
+</tr>
+<tr>
+<td>Требуется команда разработчика</td>
+<td>Выбрать одну и ту же Personal Team в Signing &amp; Capabilities обоих targets.</td>
+</tr>
+<tr>
+<td>Идентификатор занят</td>
+<td>Задать свой HAYKEYS_BUNDLE_ID в Config/Personal.xcconfig.</td>
+</tr>
+<tr>
+<td>Клавиатуры нет в настройках</td>
+<td>Сначала установить и запустить HayKeys через Xcode, затем снова открыть список клавиатур. В проекте расширение уже добавлено в Embed App Extensions.</td>
+</tr>
+<tr>
+<td>Вместо HayKeys появилась обычная клавиатура</td>
+<td>Проверить через 🌐 в «Заметках». Поля паролей и приложения с запретом сторонних клавиатур используют системную.</td>
+</tr>
+<tr>
+<td>Клавиатура перестала запускаться примерно через неделю</td>
+<td>Заново установить тот же проект на iPhone через Xcode для обновления подписи.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">Файлы проекта</h2>
+<ul>
+<li><code>App/</code> — приложение с инструкцией и полем проверки.</li>
+<li><code>Keyboard/KeyboardViewController.swift</code> — интерфейс расширения и взаимодействие с полем ввода через UITextDocumentProxy.</li>
+<li><code>Core/KeyboardLayout.swift</code> — раскладки; для изменения позиций редактируйте <code>letterRows</code>.</li>
+<li><code>Core/KeyboardState.swift</code> — страницы клавиатуры и Shift / Caps Lock.</li>
+<li><code>Core/WordSuggestions.swift</code> — встроенный словарь и дополнение слова.</li>
+<li><code>Config/Personal.xcconfig</code> — базовый Bundle Identifier.</li>
+<li><code>Tests/main.swift</code> — проверки логики без UIKit.</li>
+<li><code>scripts/check_macos.sh</code> — запуск проверок и сборки на Mac.</li>
+<li><code>scripts/test_core.sh</code> — проверки логики без UIKit; используются облачной сборкой.</li>
+<li><code>scripts/build_unsigned_ipa.sh</code> — сборка приложения и расширения в неподписанный IPA на macOS runner.</li>
+<li><code>.github/workflows/build-ipa.yml</code> — GitHub Actions, аккаунт Apple для сборки не нужен.</li>
+<li><code>INSTALL_NO_MAC_RU.md</code> — отдельная инструкция для Ubuntu и SideStore.</li>
+<li><code>INSTALL_RU.html</code> — та же инструкция в виде автономной страницы, которую удобно открыть в браузере.</li>
+</ul>
+<h2 id="apple">Документация Apple</h2>
+<p>Проверена 27 октября 2026 года. Условия Apple и названия пунктов меню могут меняться.</p>
+<ul>
+<li>Personal Team и срок действия профилей: <a href="https://developer.apple.com/help/account/basics/about-your-developer-account">https://developer.apple.com/help/account/basics/about-your-developer-account</a></li>
+<li>Xcode: <a href="https://developer.apple.com/xcode/">https://developer.apple.com/xcode/</a></li>
+<li>Режим разработчика: <a href="https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device">https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device</a></li>
+<li>Создание клавиатуры и её подключение: <a href="https://developer.apple.com/documentation/uikit/creating-a-custom-keyboard">https://developer.apple.com/documentation/uikit/creating-a-custom-keyboard</a></li>
+<li>Интерфейс и ограничения сторонних клавиатур: <a href="https://developer.apple.com/documentation/uikit/configuring-a-custom-keyboard-interface">https://developer.apple.com/documentation/uikit/configuring-a-custom-keyboard-interface</a></li>
+<li>Доступ к сети и общим контейнерам: <a href="https://developer.apple.com/documentation/uikit/configuring-open-access-for-a-custom-keyboard">https://developer.apple.com/documentation/uikit/configuring-open-access-for-a-custom-keyboard</a></li>
+<li>Добавление и переключение клавиатур: <a href="https://support.apple.com/guide/iphone/add-or-change-keyboards-iph73b71eb/ios">https://support.apple.com/guide/iphone/add-or-change-keyboards-iph73b71eb/ios</a></li>
+</ul></main></div><footer class="footer">Автономная инструкция: интернет нужен для Xcode, подписи и перехода к документации Apple.</footer></div></body></html>

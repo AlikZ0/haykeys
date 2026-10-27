@@ -1,0 +1,6 @@
+// If Xcode says the identifier is unavailable, change this one value.
+// The keyboard extension automatically receives the .keyboard suffix.
+HAYKEYS_BUNDLE_ID = com.alik.haykeys
+
+// Select your Personal Team in Signing & Capabilities for BOTH targets.
+// No paid capabilities, App Groups, or third-party dependencies are used.
