@@ -1,7 +1,7 @@
 import Foundation
 
 enum KeyboardPage: Equatable {
-    case letters, numbers, symbols, emoji
+    case letters, numbers, symbols
 }
 
 enum ShiftMode: Equatable {

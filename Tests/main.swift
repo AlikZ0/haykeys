@@ -31,9 +31,9 @@ for (width, landscape) in [(320.0, false), (375.0, false), (390.0, false), (402.
     expect(abs(available - middle) < 0.001, "Eleven-key row keeps the same key width and stays centered")
     expect(geometry.inset(for: 12) == 0, "Full-width rows need no spacer")
 }
-expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 248, "No suggestion bar or extra utility footer on a modern iPhone")
-expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 234, "Compact iPhone layout")
-expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 178, "Landscape layout")
+expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 260, "No suggestion bar or extra utility footer on a modern iPhone")
+expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 246, "Compact iPhone layout")
+expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 184, "Landscape layout")
 
 // Regression: a field's light/default request must not override a dark interface.
 expect(KeyboardTheme.resolve(interfaceIsDark: true, fieldRequestsDark: false) == .dark, "Dark interface wins over light/default field request")
@@ -81,9 +81,14 @@ expect(WordSuggestions.suffix(for: "շնորհակալություն", context: 
 expect(WordSuggestions.suffix(for: "բարև", context: "բարև") == " ", "An exact match adds a space")
 expect(KeyboardLayout.letterRows[0][6] == "և", "և replaces the first-row hyphen")
 expect(KeyboardLayout.rows(for: .numbers).flatMap { $0 }.contains("-"), "Hyphen still available on numbers page")
-expect(KeyboardLayout.rows(for: .emoji).map(\.count) == [8, 8, 8, 6], "Emoji grid leaves room for mode and delete")
-state.selectPage(.emoji)
-expect(state.output(for: "❤️") == "❤️", "Emoji inserts its complete Unicode sequence")
+// An explicit top gutter prevents the first row from entering the rounded cap.
+for (width, landscape) in [(320.0, false), (402.0, false), (720.0, true)] {
+    let layout = KeyboardGeometry(width: width, landscape: landscape)
+    expect(layout.topInset >= 8, "Top row has breathing room in each orientation")
+    expect(layout.bottomInset == 2, "Extension does not add an extra bottom footer")
+    let keyArea = layout.preferredHeight - layout.topInset - layout.bottomInset
+    expect(keyArea == 5 * layout.keyHeight + 4 * layout.rowGap, "Vertical budget fits all five rows without stretching")
+}
 
 var history = ClipboardHistory()
 for number in 0..<105 { history.add("value \(number)") }

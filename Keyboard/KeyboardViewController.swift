@@ -13,6 +13,7 @@ final class KeyboardViewController: UIInputViewController {
     private var spaceLanguageLabel: UILabel?
     private var bottomRow: UIStackView?
     private var bottomInsetConstraint: NSLayoutConstraint?
+    private var topInsetConstraint: NSLayoutConstraint?
     private var showsGlobe = false
     private var heightConstraint: NSLayoutConstraint?
     private var deleteTimer: Timer?
@@ -59,12 +60,18 @@ final class KeyboardViewController: UIInputViewController {
         }
         // Face ID iPhones provide the globe/dictation area outside this extension.
         let compact = traitCollection.verticalSizeClass == .compact || view.bounds.width > 560
-        let next = KeyboardGeometry(width: Double(view.bounds.width), landscape: compact)
+        // The landscape host reserves horizontal space for the system controls.
+        // Use the same safe horizontal bounds for key placement and width calculations.
+        let availableWidth = max(0, view.bounds.width - view.safeAreaInsets.left - view.safeAreaInsets.right)
+        guard availableWidth > 0 else { return }
+        let next = KeyboardGeometry(width: Double(availableWidth), landscape: compact)
         if geometry.width != next.width || geometry.landscape != next.landscape {
             geometry = next
             updateGeometry()
         }
-        let height = CGFloat(geometry.preferredHeight) + view.safeAreaInsets.bottom
+        // The system already owns the globe/microphone area beneath this view.
+        // Adding its bottom inset here creates an extra empty strip.
+        let height = CGFloat(geometry.preferredHeight)
         if let heightConstraint, abs(heightConstraint.constant - height) > 0.5 {
             heightConstraint.constant = height
         }
@@ -122,14 +129,17 @@ final class KeyboardViewController: UIInputViewController {
         root.spacing = CGFloat(geometry.rowGap)
         root.translatesAutoresizingMaskIntoConstraints = false
         root.semanticContentAttribute = .forceLeftToRight
+        root.insetsLayoutMarginsFromSafeArea = false
         view.addSubview(root)
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6),
-            root.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -6),
-            root.topAnchor.constraint(equalTo: view.topAnchor)
+            root.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 6),
+            root.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -6)
         ])
+        let topInset = root.topAnchor.constraint(equalTo: view.topAnchor, constant: CGFloat(geometry.topInset))
+        topInset.isActive = true
+        topInsetConstraint = topInset
         let bottomInset = root.bottomAnchor.constraint(
-            equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -CGFloat(geometry.bottomInset)
+            equalTo: view.bottomAnchor, constant: -CGFloat(geometry.bottomInset)
         )
         bottomInset.isActive = true
         bottomInsetConstraint = bottomInset
@@ -215,18 +225,14 @@ final class KeyboardViewController: UIInputViewController {
             globe.accessibilityHint = "Удерживайте, чтобы открыть список клавиатур"
             globe.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
             bottom.addArrangedSubview(globe)
-            globe.widthAnchor.constraint(equalTo: mode.widthAnchor).isActive = true
+            globe.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 0.5).isActive = true
             globeButton = globe
             keyButtons.append(globe)
         }
-        let emoji = makeKey(action: .page(state.page == .emoji ? .letters : .emoji), special: true)
-        emoji.setImage(UIImage(systemName: "face.smiling"), for: .normal)
-        emoji.accessibilityLabel = state.page == .emoji ? "Армянские буквы" : "Эмодзи"
-        [emoji, space, lineBreak].forEach { bottom.addArrangedSubview($0) }
+        [space, lineBreak].forEach { bottom.addArrangedSubview($0) }
         NSLayoutConstraint.activate([
-            emoji.widthAnchor.constraint(equalTo: mode.widthAnchor),
-            space.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 4.5),
-            lineBreak.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 2.2)
+            space.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 2.25),
+            lineBreak.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 1.1)
         ])
         root.addArrangedSubview(bottom)
         if let first = keyRows.first {
@@ -240,10 +246,11 @@ final class KeyboardViewController: UIInputViewController {
     private func updateGeometry() {
         root.spacing = CGFloat(geometry.rowGap)
         bottomInsetConstraint?.constant = -CGFloat(geometry.bottomInset)
+        topInsetConstraint?.constant = CGFloat(geometry.topInset)
         let rows = KeyboardLayout.rows(for: state.page)
         for (index, row) in keyRows.enumerated() {
             let count = rows[index].count + (index == 3 ? 2 : 0)
-            let inset = state.page == .emoji ? 0 : CGFloat(geometry.inset(for: count))
+            let inset = CGFloat(geometry.inset(for: count))
             row.spacing = CGFloat(geometry.keyGap)
             row.isLayoutMarginsRelativeArrangement = true
             row.insetsLayoutMarginsFromSafeArea = false
