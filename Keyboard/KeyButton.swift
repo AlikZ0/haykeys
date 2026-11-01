@@ -18,7 +18,7 @@ final class KeyButton: UIButton {
     var isDark = false
 
     override var isHighlighted: Bool {
-        didSet { updateColors() }
+        didSet { if isHighlighted != oldValue { updateColors() } }
     }
 
     init(action: KeyAction? = nil, special: Bool = false) {

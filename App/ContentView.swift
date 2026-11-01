@@ -46,7 +46,7 @@ struct ContentView: View {
                             soundStatus = request.enabled ? "Подтверждено HayKeys: звук включён." : "Подтверждено HayKeys: звук выключен."
                             pendingSoundRequest = nil
                         }
-                        .frame(height: 1).accessibilityHidden(true)
+                        .frame(width: 1, height: 1).clipped().accessibilityHidden(true)
                     }
                     .padding(18).background(Color(.secondarySystemGroupedBackground)).cornerRadius(18)
 
@@ -283,6 +283,12 @@ struct ClipboardHistoryView: View {
 
 /// Dedicated first responder used only while the user explicitly applies a setting.
 /// The nonce acknowledgement is written by HayKeys itself, not inferred from the app toggle.
+final class SettingsTransactionTextField: UITextField {
+    // The transaction's text must never become the ideal width of the SwiftUI page.
+    override var intrinsicContentSize: CGSize { CGSize(width: 1, height: 1) }
+    override func sizeThatFits(_ size: CGSize) -> CGSize { CGSize(width: 1, height: 1) }
+}
+
 struct SoundSettingsField: UIViewRepresentable {
     let request: SoundSettingsRequest?
     let onApplied: (SoundSettingsRequest) -> Void
@@ -290,7 +296,9 @@ struct SoundSettingsField: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeUIView(context: Context) -> UITextField {
-        let field = UITextField()
+        let field = SettingsTransactionTextField()
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.textColor = .clear
         field.tintColor = .clear
         field.isAccessibilityElement = false
@@ -302,6 +310,10 @@ struct SoundSettingsField: UIViewRepresentable {
         field.smartInsertDeleteType = .no
         field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
         return field
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextField, context: Context) -> CGSize? {
+        CGSize(width: 1, height: 1)
     }
 
     func updateUIView(_ field: UITextField, context: Context) {
@@ -319,7 +331,8 @@ struct SoundSettingsField: UIViewRepresentable {
             guard let field, context.coordinator.armedID == request.id else { return }
             field.becomeFirstResponder()
             field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
-            field.reloadInputViews()
+            // Becoming first responder and selecting the transaction already notify the
+            // active keyboard; reloading all input views here causes needless churn.
         }
     }
 

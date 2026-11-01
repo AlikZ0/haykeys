@@ -56,3 +56,32 @@ enum KeyboardTheme: Equatable {
         interfaceIsDark || fieldRequestsDark ? .dark : .light
     }
 }
+
+struct KeyboardRenderSnapshot: Equatable {
+    let page: KeyboardPage
+    let shift: ShiftMode
+    let theme: KeyboardTheme
+}
+
+struct KeyboardRenderChanges {
+    let labels: Bool
+    let colors: Bool
+    let shift: Bool
+}
+
+/// Text edits don't change key artwork unless they consume one-shot Shift.
+struct KeyboardRenderCache {
+    private var previous: KeyboardRenderSnapshot?
+
+    mutating func update(_ next: KeyboardRenderSnapshot) -> KeyboardRenderChanges {
+        let changes = KeyboardRenderChanges(
+            labels: previous?.page != next.page || previous?.shift != next.shift,
+            colors: previous?.theme != next.theme,
+            shift: previous?.shift != next.shift
+        )
+        previous = next
+        return changes
+    }
+
+    mutating func reset() { previous = nil }
+}

@@ -121,4 +121,23 @@ for enabled in [true, false] {
 expect(SoundSettingsRequest.parse("~HayKeys.Sound.v1|invalid|1~") == nil, "Reject invalid nonce")
 expect(SoundSettingsRequest.parse("hello") == nil, "Normal user text is unaffected")
 expect(SoundSettingsRequest.parse("~HayKeys.Sound.v1|00000000-0000-0000-0000-000000000000|2~") == nil, "Reject invalid boolean")
+var renderCache = KeyboardRenderCache()
+let baseline = KeyboardRenderSnapshot(page: .letters, shift: .off, theme: .dark)
+let initialRender = renderCache.update(baseline)
+expect(initialRender.labels && initialRender.colors && initialRender.shift, "Initial keyboard draws all artwork")
+var redundantArtworkUpdates = 0
+for _ in 0..<1000 {
+    let changes = renderCache.update(baseline)
+    if changes.labels || changes.colors || changes.shift { redundantArtworkUpdates += 1 }
+}
+expect(redundantArtworkUpdates == 0, "1000 unchanged text callbacks require zero key-artwork passes")
+let shiftChange = renderCache.update(KeyboardRenderSnapshot(page: .letters, shift: .once, theme: .dark))
+expect(shiftChange.labels && shiftChange.shift && !shiftChange.colors, "Shift updates labels and icon without recoloring all keys")
+let consumedShift = renderCache.update(baseline)
+expect(consumedShift.labels && consumedShift.shift, "One-shot Shift consumption returns labels to lowercase")
+let lightChange = renderCache.update(KeyboardRenderSnapshot(page: .letters, shift: .off, theme: .light))
+expect(lightChange.colors && !lightChange.labels && !lightChange.shift, "Theme transition recolors without replacing labels or Shift image")
+renderCache.reset()
+let rebuilt = renderCache.update(baseline)
+expect(rebuilt.labels && rebuilt.colors && rebuilt.shift, "Rebuilt keys receive complete artwork")
 print("PASS: \(assertions) core checks")

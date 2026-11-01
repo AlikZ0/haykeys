@@ -8,6 +8,10 @@ final class SoundInputView: UIInputView, UIInputViewAudioFeedback {
 final class KeyboardViewController: UIInputViewController {
     private var state = KeyboardState()
     private var applyingSoundSettings = false
+    private var renderCache = KeyboardRenderCache()
+    private var lastReturnType: UIReturnKeyType?
+    private var contextRefreshPending = false
+    private var settingsCheckPending = false
     private var appliedTheme: KeyboardTheme?
     private var geometry = KeyboardGeometry(width: 402, landscape: false)
     private let root = UIStackView()
@@ -36,11 +40,14 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         primaryLanguage = "hy"
-        buildKeyboard()
+        applyInputTraits()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        (inputView as? SoundInputView)?.clicksEnabled = KeyboardSettings.soundEnabled(
+            stored: UserDefaults.standard.object(forKey: KeyboardSettings.soundKey) as? Bool
+        )
         applyInputTraits()
         _ = applySoundSettingsIfSelected()
         refresh()
@@ -50,7 +57,7 @@ final class KeyboardViewController: UIInputViewController {
         super.viewDidAppear(animated)
         _ = applySoundSettingsIfSelected()
         refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -88,22 +95,17 @@ final class KeyboardViewController: UIInputViewController {
     override func textWillChange(_ textInput: UITextInput?) {
         super.textWillChange(textInput)
         applyInputTraits()
-        _ = applySoundSettingsIfSelected()
-        refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh()
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
-        if applySoundSettingsIfSelected() { return }
-        refresh()
+        scheduleContextRefresh()
     }
 
     override func selectionDidChange(_ textInput: UITextInput?) {
         super.selectionDidChange(textInput)
-        if applySoundSettingsIfSelected() { return }
-        refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh(checkSettings: true)
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -126,6 +128,8 @@ final class KeyboardViewController: UIInputViewController {
 
     private func buildKeyboard() {
         stopDeleting()
+        renderCache.reset()
+        lastReturnType = nil
         root.removeFromSuperview()
         root.arrangedSubviews.forEach { $0.removeFromSuperview() }
         keyRows.removeAll()
@@ -208,6 +212,8 @@ final class KeyboardViewController: UIInputViewController {
         space.accessibilityHint = "Удерживайте и двигайте палец для перемещения курсора"
         let cursorGesture = UILongPressGestureRecognizer(target: self, action: #selector(moveCursor(_:)))
         cursorGesture.minimumPressDuration = 0.35
+        cursorGesture.delaysTouchesBegan = false
+        cursorGesture.delaysTouchesEnded = false
         space.addGestureRecognizer(cursorGesture)
         let language = UILabel()
         language.text = "Հայերեն"
@@ -301,6 +307,8 @@ final class KeyboardViewController: UIInputViewController {
                 target: self, action: #selector(insertAlternate(_:))
             )
             alternateGesture.minimumPressDuration = 0.4
+            alternateGesture.delaysTouchesBegan = false
+            alternateGesture.delaysTouchesEnded = false
             key.addGestureRecognizer(alternateGesture)
         }
         keyButtons.append(key)
@@ -311,13 +319,11 @@ final class KeyboardViewController: UIInputViewController {
         guard gesture.state == .began,
               let key = gesture.view as? KeyButton,
               let text = key.alternateText else { return }
-        if applySoundSettingsIfSelected() { return }
         playKeyClick()
         insert(state.output(for: text))
     }
 
     @objc private func keyTapped(_ sender: KeyButton) {
-        if applySoundSettingsIfSelected() { return }
         playKeyClick()
         guard let action = sender.keyAction else { return }
         switch action {
@@ -336,10 +342,10 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func insert(_ text: String) {
+        let previousShift = state.shift
         textDocumentProxy.insertText(text)
         state.didInsert(text)
-        refresh()
-        refreshAfterProxyUpdate()
+        if previousShift != state.shift { refresh() }
     }
 
     @objc private func playKeyClick() {
@@ -372,33 +378,41 @@ final class KeyboardViewController: UIInputViewController {
 
     private func refresh() {
         guard isViewLoaded else { return }
-        (inputView as? SoundInputView)?.clicksEnabled = KeyboardSettings.soundEnabled(
-            stored: UserDefaults.standard.object(forKey: KeyboardSettings.soundKey) as? Bool
-        )
         let theme = resolvedTheme
         appliedTheme = theme
+        let changes = renderCache.update(KeyboardRenderSnapshot(page: state.page, shift: state.shift, theme: theme))
         let dark = theme == .dark
-        // UIInputView.Style.keyboard supplies the system blur/tint underneath our keys.
-        // Do not cover it with an opaque panel or impose a second set of top corners.
-        view.backgroundColor = .clear
-        for key in keyButtons {
-            key.isDark = dark
-            if case .insert(let value)? = key.keyAction {
-                let output = state.output(for: value)
-                key.setTitle(output, for: .normal)
-                key.accessibilityLabel = output
+        if changes.colors { view.backgroundColor = .clear }
+        if changes.labels || changes.colors {
+            for key in keyButtons {
+                if changes.labels, case .insert(let value)? = key.keyAction {
+                    let output = state.output(for: value)
+                    key.setTitle(output, for: .normal)
+                    key.accessibilityLabel = output
+                }
+                if changes.colors {
+                    key.isDark = dark
+                    key.updateColors()
+                }
             }
-            key.updateColors()
         }
-        let shiftIcon = state.shift == .locked ? "capslock.fill" :
-            (state.shift == .once ? "shift.fill" : "shift")
-        shiftButton?.setImage(UIImage(systemName: shiftIcon), for: .normal)
-        shiftButton?.isActive = state.shift != .off
-        shiftButton?.accessibilityValue = state.shift == .locked ? "Caps Lock" :
-            (state.shift == .once ? "Одна заглавная буква" : "Строчные буквы")
-        shiftButton?.updateColors()
-        spaceLanguageLabel?.textColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(0.28)
-        updateReturnLabel()
+        if changes.shift {
+            let shiftIcon = state.shift == .locked ? "capslock.fill" :
+                (state.shift == .once ? "shift.fill" : "shift")
+            shiftButton?.setImage(UIImage(systemName: shiftIcon), for: .normal)
+            shiftButton?.isActive = state.shift != .off
+            shiftButton?.accessibilityValue = state.shift == .locked ? "Caps Lock" :
+                (state.shift == .once ? "Одна заглавная буква" : "Строчные буквы")
+            shiftButton?.updateColors()
+        }
+        if changes.colors {
+            spaceLanguageLabel?.textColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(0.28)
+        }
+        let returnType = textDocumentProxy.returnKeyType ?? .default
+        if lastReturnType != returnType {
+            lastReturnType = returnType
+            updateReturnLabel()
+        }
     }
 
     private func updateReturnLabel() {
@@ -415,15 +429,22 @@ final class KeyboardViewController: UIInputViewController {
         returnButton?.setImage(title == nil ? UIImage(systemName: "return") : nil, for: .normal)
     }
 
-    private func refreshAfterProxyUpdate() {
+    private func scheduleContextRefresh(checkSettings: Bool = false) {
+        settingsCheckPending = settingsCheckPending || checkSettings
+        guard !contextRefreshPending else { return }
+        contextRefreshPending = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if !self.applySoundSettingsIfSelected() { self.refresh() }
+            self.contextRefreshPending = false
+            let checkSettings = self.settingsCheckPending
+            self.settingsCheckPending = false
+            guard self.isViewLoaded, self.view.window != nil else { return }
+            if checkSettings, self.applySoundSettingsIfSelected() { return }
+            self.refresh()
         }
     }
 
     @objc private func startDeleting() {
-        if applySoundSettingsIfSelected() { return }
         stopDeleting()
         deleteOneCharacter()
         deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
@@ -438,7 +459,6 @@ final class KeyboardViewController: UIInputViewController {
     private func deleteOneCharacter() {
         playKeyClick()
         textDocumentProxy.deleteBackward()
-        refreshAfterProxyUpdate()
     }
 
     @objc private func stopDeleting() {
@@ -461,7 +481,6 @@ final class KeyboardViewController: UIInputViewController {
             if steps != 0 {
                 textDocumentProxy.adjustTextPosition(byCharacterOffset: steps)
                 cursorX += CGFloat(steps) * 10
-                refreshAfterProxyUpdate()
             }
         case .ended, .cancelled, .failed:
             spaceLanguageLabel?.text = "Հայերեն"
