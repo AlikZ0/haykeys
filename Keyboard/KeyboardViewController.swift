@@ -1,16 +1,10 @@
 import UIKit
 
 final class KeyboardViewController: UIInputViewController {
-    private enum SuggestionMode: Equatable { case completion, currentWord, phrase, symbol }
     private var state = KeyboardState()
     private var appliedTheme: KeyboardTheme?
     private var geometry = KeyboardGeometry(width: 402, landscape: false)
     private let root = UIStackView()
-    private var suggestionRow = UIStackView()
-    private var suggestionButtons: [UIButton] = []
-    private var suggestions: [String] = []
-    private var suggestionMode: SuggestionMode = .phrase
-    private let initialPhrases = ["Բարև", "Շնորհակալություն", "Այո"]
     private var keyRows: [UIStackView] = []
     private var keyButtons: [KeyButton] = []
     private var shiftButton: KeyButton?
@@ -18,7 +12,6 @@ final class KeyboardViewController: UIInputViewController {
     private var globeButton: KeyButton?
     private var spaceLanguageLabel: UILabel?
     private var bottomRow: UIStackView?
-    private var suggestionHeightConstraint: NSLayoutConstraint?
     private var bottomInsetConstraint: NSLayoutConstraint?
     private var showsGlobe = false
     private var heightConstraint: NSLayoutConstraint?
@@ -26,13 +19,16 @@ final class KeyboardViewController: UIInputViewController {
     private var previousKeyboardType: UIKeyboardType?
     private var cursorX: CGFloat = 0
 
+    override func loadView() {
+        let keyboardView = UIInputView(frame: .zero, inputViewStyle: .keyboard)
+        keyboardView.allowsSelfSizing = true
+        keyboardView.backgroundColor = .clear
+        inputView = keyboardView
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         primaryLanguage = "hy"
-        view.layer.cornerRadius = 20
-        view.layer.cornerCurve = .continuous
-        view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        view.clipsToBounds = true
         buildKeyboard()
     }
 
@@ -114,11 +110,8 @@ final class KeyboardViewController: UIInputViewController {
         stopDeleting()
         root.removeFromSuperview()
         root.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        suggestionRow.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        suggestionRow = UIStackView()
         keyRows.removeAll()
         keyButtons.removeAll()
-        suggestionButtons.removeAll()
         shiftButton = nil
         returnButton = nil
         globeButton = nil
@@ -145,25 +138,6 @@ final class KeyboardViewController: UIInputViewController {
             constraint.priority = UILayoutPriority(999)
             constraint.isActive = true
             heightConstraint = constraint
-        }
-
-        suggestionRow.axis = .horizontal
-        suggestionRow.distribution = .fillEqually
-        suggestionRow.spacing = 1
-        root.addArrangedSubview(suggestionRow)
-        let suggestionHeight = suggestionRow.heightAnchor.constraint(equalToConstant: CGFloat(geometry.suggestionHeight))
-        suggestionHeight.isActive = true
-        suggestionHeightConstraint = suggestionHeight
-        for index in 0..<3 {
-            let button = UIButton(type: .system)
-            button.tag = index
-            button.titleLabel?.font = .systemFont(ofSize: 16, weight: .regular)
-            button.titleLabel?.adjustsFontSizeToFitWidth = true
-            button.titleLabel?.minimumScaleFactor = 0.65
-            button.accessibilityTraits = .keyboardKey
-            button.addTarget(self, action: #selector(suggestionTapped(_:)), for: .touchUpInside)
-            suggestionRow.addArrangedSubview(button)
-            suggestionButtons.append(button)
         }
 
         for (index, values) in KeyboardLayout.rows(for: state.page).enumerated() {
@@ -245,11 +219,12 @@ final class KeyboardViewController: UIInputViewController {
             globeButton = globe
             keyButtons.append(globe)
         }
-        let ligature = makeKey(action: .insert(KeyboardLayout.ligature))
-        ligature.accessibilityLabel = "և — армянская лигатура"
-        [ligature, space, lineBreak].forEach { bottom.addArrangedSubview($0) }
+        let emoji = makeKey(action: .page(state.page == .emoji ? .letters : .emoji), special: true)
+        emoji.setImage(UIImage(systemName: "face.smiling"), for: .normal)
+        emoji.accessibilityLabel = state.page == .emoji ? "Армянские буквы" : "Эмодзи"
+        [emoji, space, lineBreak].forEach { bottom.addArrangedSubview($0) }
         NSLayoutConstraint.activate([
-            ligature.widthAnchor.constraint(equalTo: mode.widthAnchor),
+            emoji.widthAnchor.constraint(equalTo: mode.widthAnchor),
             space.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 4.5),
             lineBreak.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 2.2)
         ])
@@ -264,12 +239,11 @@ final class KeyboardViewController: UIInputViewController {
 
     private func updateGeometry() {
         root.spacing = CGFloat(geometry.rowGap)
-        suggestionHeightConstraint?.constant = CGFloat(geometry.suggestionHeight)
         bottomInsetConstraint?.constant = -CGFloat(geometry.bottomInset)
         let rows = KeyboardLayout.rows(for: state.page)
         for (index, row) in keyRows.enumerated() {
             let count = rows[index].count + (index == 3 ? 2 : 0)
-            let inset = CGFloat(geometry.inset(for: count))
+            let inset = state.page == .emoji ? 0 : CGFloat(geometry.inset(for: count))
             row.spacing = CGFloat(geometry.keyGap)
             row.isLayoutMarginsRelativeArrangement = true
             row.insetsLayoutMarginsFromSafeArea = false
@@ -345,25 +319,6 @@ final class KeyboardViewController: UIInputViewController {
         refreshAfterProxyUpdate()
     }
 
-    @objc private func suggestionTapped(_ sender: UIButton) {
-        guard suggestions.indices.contains(sender.tag) else { return }
-        let candidate = suggestions[sender.tag]
-        switch suggestionMode {
-        case .completion:
-            guard let suffix = WordSuggestions.suffix(
-                for: candidate, context: textDocumentProxy.documentContextBeforeInput
-            ) else { return }
-            insert(suffix)
-        case .currentWord:
-            guard WordSuggestions.currentPrefix(in: textDocumentProxy.documentContextBeforeInput) == candidate else { return }
-            insert(" ")
-        case .phrase:
-            insert((state.shift == .locked ? candidate.uppercased() : candidate) + " ")
-        case .symbol:
-            insert(candidate)
-        }
-    }
-
     private var resolvedTheme: KeyboardTheme {
         let interfaceIsDark = traitCollection.userInterfaceStyle == .dark ||
             view.traitCollection.userInterfaceStyle == .dark ||
@@ -379,8 +334,9 @@ final class KeyboardViewController: UIInputViewController {
         let theme = resolvedTheme
         appliedTheme = theme
         let dark = theme == .dark
-        view.backgroundColor = dark ? UIColor(white: 0.12, alpha: 1)
-            : UIColor(red: 0.885, green: 0.889, blue: 0.907, alpha: 1)
+        // UIInputView.Style.keyboard supplies the system blur/tint underneath our keys.
+        // Do not cover it with an opaque panel or impose a second set of top corners.
+        view.backgroundColor = .clear
         for key in keyButtons {
             key.isDark = dark
             if case .insert(let value)? = key.keyAction {
@@ -399,7 +355,6 @@ final class KeyboardViewController: UIInputViewController {
         shiftButton?.updateColors()
         spaceLanguageLabel?.textColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(0.28)
         updateReturnLabel()
-        updateSuggestions(dark: dark)
     }
 
     private func updateReturnLabel() {
@@ -414,33 +369,6 @@ final class KeyboardViewController: UIInputViewController {
         }
         returnButton?.setTitle(title, for: .normal)
         returnButton?.setImage(title == nil ? UIImage(systemName: "return") : nil, for: .normal)
-    }
-
-    private func updateSuggestions(dark: Bool) {
-        let context = textDocumentProxy.documentContextBeforeInput
-        let prefix = WordSuggestions.currentPrefix(in: context)
-        let matches = WordSuggestions.matches(in: context)
-        if state.page != .letters {
-            suggestionMode = .symbol
-            suggestions = ["։", "՝", "՞"]
-        } else if !matches.isEmpty {
-            suggestionMode = .completion
-            suggestions = matches
-        } else if !prefix.isEmpty {
-            suggestionMode = .currentWord
-            suggestions = [prefix]
-        } else {
-            suggestionMode = .phrase
-            suggestions = initialPhrases
-        }
-        for (index, button) in suggestionButtons.enumerated() {
-            let exists = suggestions.indices.contains(index)
-            let title = exists ? suggestions[index] : ""
-            button.setTitle(title, for: .normal)
-            button.setTitleColor(dark ? .white : .black, for: .normal)
-            button.isEnabled = exists
-            button.accessibilityLabel = suggestionMode == .completion ? "Дополнить: \(title)" : title
-        }
     }
 
     private func refreshAfterProxyUpdate() {

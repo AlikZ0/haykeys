@@ -5,6 +5,17 @@
 	};
 	"objectVersion" = 56;
 	"objects" = {
+		F12000000000000000000001 = {
+            "isa" = "PBXFileReference";
+            "lastKnownFileType" = "sourcecode.swift";
+            "path" = "ClipboardHistory.swift";
+            "sourceTree" = "<group>";
+        };
+        F12000000000000000000002 = {
+            "isa" = "PBXBuildFile";
+            "fileRef" = "F12000000000000000000001";
+        };
+
 		926A3ACB979698514749EAF2 = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -139,6 +150,7 @@
 		410188F9DC6E499FEC68BCF6 = {
 			"isa" = "PBXGroup";
 			"children" = (
+                "F12000000000000000000001",
 				25950536C94966DD1FD97018,
 				A8876E92222E2BF068EF34B6,
 				CD7DD836389AB38FAA9B3165,
@@ -207,6 +219,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+                "F12000000000000000000002",
 				5D61DFC58DCA23AD7DEB1B0C,
 				B40A6821C34FE3C306D74DA1,
 			);
@@ -326,8 +339,8 @@
 				"CLANG_ENABLE_MODULES" = "YES";
 				"CLANG_ENABLE_OBJC_ARC" = "YES";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "3";
-				"MARKETING_VERSION" = "1.1.1";
+				"CURRENT_PROJECT_VERSION" = "4";
+				"MARKETING_VERSION" = "1.2";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
 				"SDKROOT" = "iphoneos";
 				"SWIFT_VERSION" = "5.0";
@@ -356,8 +369,8 @@
 				"CLANG_ENABLE_MODULES" = "YES";
 				"CLANG_ENABLE_OBJC_ARC" = "YES";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "3";
-				"MARKETING_VERSION" = "1.1.1";
+				"CURRENT_PROJECT_VERSION" = "4";
+				"MARKETING_VERSION" = "1.2";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
 				"SDKROOT" = "iphoneos";
 				"SWIFT_VERSION" = "5.0";

@@ -7,7 +7,7 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 let letters = KeyboardLayout.letterRows.flatMap { $0 }.filter {
-    $0.unicodeScalars.allSatisfy { CharacterSet.letters.contains($0) }
+    $0 != KeyboardLayout.ligature && $0.unicodeScalars.allSatisfy { CharacterSet.letters.contains($0) }
 }
 let alphabet = Set(Array("աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆ").map(String.init))
 expect(letters.count == 38, "The reference layout has 38 separate Armenian letters")
@@ -18,7 +18,7 @@ expect(KeyboardLayout.letterRows[1][9] == "բ", "Reference բ position")
 expect(KeyboardLayout.letterRows[3][4] == "պ", "Reference պ position")
 expect(KeyboardLayout.letterRows[1][10] == "չ", "Reference չ position")
 expect(KeyboardLayout.letterRows[3][7] == "շ", "Reference շ position")
-expect(KeyboardLayout.letterRows[0] == ["՝", "։", "ձ", "յ", "՛", ",", "-", "«", "»", "օ", "ռ", "ժ"], "Punctuation follows the latest reference photo")
+expect(KeyboardLayout.letterRows[0] == ["՝", "։", "ձ", "յ", "՛", ",", "և", "«", "»", "օ", "ռ", "ժ"], "Punctuation follows the latest reference photo")
 expect(KeyboardLayout.ligature == "\u{0587}", "Dedicated և inserts the Armenian ligature, not Latin E")
 expect(KeyboardLayout.letterRows[1][5] == "ե", "ե remains a normal visible key")
 expect(KeyboardLayout.letterRows[1][2] == "է", "է remains distinct from ե")
@@ -31,9 +31,9 @@ for (width, landscape) in [(320.0, false), (375.0, false), (390.0, false), (402.
     expect(abs(available - middle) < 0.001, "Eleven-key row keeps the same key width and stays centered")
     expect(geometry.inset(for: 12) == 0, "Full-width rows need no spacer")
 }
-expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 290, "No extra utility footer on a modern iPhone")
-expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 271, "Compact iPhone layout")
-expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 212, "Landscape layout")
+expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 248, "No suggestion bar or extra utility footer on a modern iPhone")
+expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 234, "Compact iPhone layout")
+expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 178, "Landscape layout")
 
 // Regression: a field's light/default request must not override a dark interface.
 expect(KeyboardTheme.resolve(interfaceIsDark: true, fieldRequestsDark: false) == .dark, "Dark interface wins over light/default field request")
@@ -79,4 +79,29 @@ expect(WordSuggestions.matches(in: "շնոր", limit: 2).count == 2, "Suggestion
 expect(WordSuggestions.suffix(for: "շնորհակալություն", context: "շնոր") == "հակալություն ", "Append only the missing suffix")
 expect(WordSuggestions.suffix(for: "շնորհակալություն", context: "բար") == nil, "Reject a stale suggestion after the cursor moves")
 expect(WordSuggestions.suffix(for: "բարև", context: "բարև") == " ", "An exact match adds a space")
+expect(KeyboardLayout.letterRows[0][6] == "և", "և replaces the first-row hyphen")
+expect(KeyboardLayout.rows(for: .numbers).flatMap { $0 }.contains("-"), "Hyphen still available on numbers page")
+expect(KeyboardLayout.rows(for: .emoji).map(\.count) == [8, 8, 8, 6], "Emoji grid leaves room for mode and delete")
+state.selectPage(.emoji)
+expect(state.output(for: "❤️") == "❤️", "Emoji inserts its complete Unicode sequence")
+
+var history = ClipboardHistory()
+for number in 0..<105 { history.add("value \(number)") }
+expect(history.entries.count == 100, "History is bounded to 100 texts")
+expect(history.entries.first?.text == "value 104" && history.entries.last?.text == "value 5", "Newest first, oldest entries removed")
+history.add("value 10")
+expect(history.entries.first?.text == "value 10" && history.entries.count == 100, "Duplicate moves to front without growing history")
+let exactText = "  Բարև և 👨‍👩‍👧‍👦\nsecond line  "
+history.add(exactText)
+expect(history.entries.first?.text == exactText, "History preserves spaces, newlines and Unicode")
+history.add("  \n")
+expect(history.entries.first?.text == exactText, "Empty clipboard text is ignored")
+let encoded = try JSONEncoder().encode(history)
+let decoded = try JSONDecoder().decode(ClipboardHistory.self, from: encoded)
+expect(decoded.entries == history.entries, "History survives a persistence round trip")
+let removed = history.entries[0].id
+history.remove(id: removed)
+expect(history.entries.count == 99 && !history.entries.contains(where: { $0.id == removed }), "Delete one entry")
+history.clear()
+expect(history.entries.isEmpty, "Clear all entries")
 print("PASS: \(assertions) core checks")
