@@ -26,17 +26,20 @@ final class KeyButton: UIButton {
         isSpecial = special
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        layer.cornerRadius = 6
+        layer.cornerRadius = 8
+        layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowOpacity = 0.18
-        layer.shadowRadius = 0
-        titleLabel?.font = .systemFont(ofSize: 25)
+        layer.shadowOpacity = 0.12
+        layer.shadowRadius = 0.25
+        titleLabel?.font = .systemFont(ofSize: 22, weight: .regular)
         titleLabel?.adjustsFontSizeToFitWidth = true
-        titleLabel?.minimumScaleFactor = 0.45
+        titleLabel?.minimumScaleFactor = 0.75
         titleLabel?.lineBreakMode = .byClipping
         contentEdgeInsets = UIEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
         accessibilityTraits = .keyboardKey
+        imageView?.contentMode = .scaleAspectFit
+        setPreferredSymbolConfiguration(UIImage.SymbolConfiguration(pointSize: 21, weight: .regular), forImageIn: .normal)
         updateColors()
     }
 
@@ -54,12 +57,18 @@ final class KeyButton: UIButton {
     }
 
     func updateColors() {
-        let foreground: UIColor = isDark ? .white : .black
-        let regular = isDark ? UIColor(white: 0.36, alpha: 1) : .white
-        let special = isDark ? UIColor(white: 0.22, alpha: 1) : UIColor(white: 0.67, alpha: 1)
-        backgroundColor = isHighlighted ? (isDark ? .darkGray : UIColor(white: 0.76, alpha: 1))
-            : (isActive ? regular : (isSpecial ? special : regular))
+        let foreground: UIColor = isActive ? .black : (isDark ? .white : .black)
+        let regular = isDark ? UIColor(white: 0.38, alpha: 1) : .white
+        let special = isDark ? UIColor(white: 0.25, alpha: 1) : .white
+        let pressed = isDark ? UIColor(white: 0.55, alpha: 1) : UIColor(white: 0.78, alpha: 1)
+        backgroundColor = isHighlighted ? pressed : (isActive ? .white : (isSpecial ? special : regular))
+        layer.shadowOpacity = isDark ? 0 : 0.12
         setTitleColor(foreground, for: .normal)
         tintColor = foreground
+    }
+
+    // Cover the narrow gaps between adjacent Armenian keys without shrinking labels.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        bounds.insetBy(dx: -2, dy: 0).contains(point)
     }
 }
