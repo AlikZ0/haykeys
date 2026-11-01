@@ -15,6 +15,7 @@ xcrun swiftc -swift-version 5 \
     "$haykeys_root/Core/KeyboardState.swift" \
     "$haykeys_root/Core/WordSuggestions.swift" \
     "$haykeys_root/Core/ClipboardHistory.swift" \
+    "$haykeys_root/Core/KeyboardSettings.swift" \
     "$haykeys_root/Tests/main.swift" \
     -o "$haykeys_tests_dir/core-checks"
 "$haykeys_tests_dir/core-checks"

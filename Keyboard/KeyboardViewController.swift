@@ -1,7 +1,13 @@
 import UIKit
 
+final class SoundInputView: UIInputView, UIInputViewAudioFeedback {
+    var clicksEnabled = true
+    var enableInputClicksWhenVisible: Bool { clicksEnabled }
+}
+
 final class KeyboardViewController: UIInputViewController {
     private var state = KeyboardState()
+    private var applyingSoundSettings = false
     private var appliedTheme: KeyboardTheme?
     private var geometry = KeyboardGeometry(width: 402, landscape: false)
     private let root = UIStackView()
@@ -21,7 +27,7 @@ final class KeyboardViewController: UIInputViewController {
     private var cursorX: CGFloat = 0
 
     override func loadView() {
-        let keyboardView = UIInputView(frame: .zero, inputViewStyle: .keyboard)
+        let keyboardView = SoundInputView(frame: .zero, inputViewStyle: .keyboard)
         keyboardView.allowsSelfSizing = true
         keyboardView.backgroundColor = .clear
         inputView = keyboardView
@@ -36,11 +42,13 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         applyInputTraits()
+        _ = applySoundSettingsIfSelected()
         refresh()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        _ = applySoundSettingsIfSelected()
         refresh()
         refreshAfterProxyUpdate()
     }
@@ -80,17 +88,20 @@ final class KeyboardViewController: UIInputViewController {
     override func textWillChange(_ textInput: UITextInput?) {
         super.textWillChange(textInput)
         applyInputTraits()
+        _ = applySoundSettingsIfSelected()
         refresh()
         refreshAfterProxyUpdate()
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
+        if applySoundSettingsIfSelected() { return }
         refresh()
     }
 
     override func selectionDidChange(_ textInput: UITextInput?) {
         super.selectionDidChange(textInput)
+        if applySoundSettingsIfSelected() { return }
         refresh()
         refreshAfterProxyUpdate()
     }
@@ -223,6 +234,7 @@ final class KeyboardViewController: UIInputViewController {
             globe.setImage(UIImage(systemName: "globe"), for: .normal)
             globe.accessibilityLabel = "Сменить клавиатуру"
             globe.accessibilityHint = "Удерживайте, чтобы открыть список клавиатур"
+            globe.addTarget(self, action: #selector(playKeyClick), for: .touchDown)
             globe.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
             bottom.addArrangedSubview(globe)
             globe.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 0.5).isActive = true
@@ -299,10 +311,14 @@ final class KeyboardViewController: UIInputViewController {
         guard gesture.state == .began,
               let key = gesture.view as? KeyButton,
               let text = key.alternateText else { return }
+        if applySoundSettingsIfSelected() { return }
+        playKeyClick()
         insert(state.output(for: text))
     }
 
     @objc private func keyTapped(_ sender: KeyButton) {
+        if applySoundSettingsIfSelected() { return }
+        playKeyClick()
         guard let action = sender.keyAction else { return }
         switch action {
         case .insert(let text): insert(state.output(for: text))
@@ -326,6 +342,24 @@ final class KeyboardViewController: UIInputViewController {
         refreshAfterProxyUpdate()
     }
 
+    @objc private func playKeyClick() {
+        guard (inputView as? SoundInputView)?.clicksEnabled == true else { return }
+        UIDevice.current.playInputClick()
+    }
+
+    private func applySoundSettingsIfSelected() -> Bool {
+        guard !applyingSoundSettings,
+              let selected = textDocumentProxy.selectedText,
+              let request = SoundSettingsRequest.parse(selected) else { return false }
+        applyingSoundSettings = true
+        defer { applyingSoundSettings = false }
+        UserDefaults.standard.set(request.enabled, forKey: KeyboardSettings.soundKey)
+        (inputView as? SoundInputView)?.clicksEnabled = request.enabled
+        // Replaces only the selected transaction, never the surrounding document.
+        textDocumentProxy.insertText(request.acknowledgement)
+        return true
+    }
+
     private var resolvedTheme: KeyboardTheme {
         let interfaceIsDark = traitCollection.userInterfaceStyle == .dark ||
             view.traitCollection.userInterfaceStyle == .dark ||
@@ -338,6 +372,9 @@ final class KeyboardViewController: UIInputViewController {
 
     private func refresh() {
         guard isViewLoaded else { return }
+        (inputView as? SoundInputView)?.clicksEnabled = KeyboardSettings.soundEnabled(
+            stored: UserDefaults.standard.object(forKey: KeyboardSettings.soundKey) as? Bool
+        )
         let theme = resolvedTheme
         appliedTheme = theme
         let dark = theme == .dark
@@ -379,10 +416,14 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func refreshAfterProxyUpdate() {
-        DispatchQueue.main.async { [weak self] in self?.refresh() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if !self.applySoundSettingsIfSelected() { self.refresh() }
+        }
     }
 
     @objc private func startDeleting() {
+        if applySoundSettingsIfSelected() { return }
         stopDeleting()
         deleteOneCharacter()
         deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
@@ -395,6 +436,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func deleteOneCharacter() {
+        playKeyClick()
         textDocumentProxy.deleteBackward()
         refreshAfterProxyUpdate()
     }

@@ -6,6 +6,10 @@ struct ContentView: View {
     @StateObject private var historyStore = ClipboardStore()
     @State private var savedCopy = false
     @FocusState private var practicing: Bool
+    @AppStorage(KeyboardSettings.soundKey) private var soundEnabled = true
+    @State private var pendingSoundRequest: SoundSettingsRequest?
+    @State private var soundStatus = "После изменения нажмите «Применить» и выберите HayKeys."
+
 
     var body: some View {
         NavigationView {
@@ -17,6 +21,34 @@ struct ContentView: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(.top, 12)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Звук клавиш").font(.headline)
+                        Toggle("Щелчки HayKeys", isOn: $soundEnabled)
+                            .onChange(of: soundEnabled) { _ in
+                                pendingSoundRequest = nil
+                                soundStatus = "Изменение ещё не применено к клавиатуре. Нажмите «Применить»."
+                            }
+                        Button("Применить к клавиатуре") {
+                            practicing = false
+                            soundStatus = "В открывшейся клавиатуре через 🌐 выберите HayKeys Armenian. Дождитесь подтверждения."
+                            pendingSoundRequest = SoundSettingsRequest(enabled: soundEnabled)
+                        }
+                        Text(soundStatus).font(.footnote).foregroundColor(.secondary)
+                        if pendingSoundRequest != nil {
+                            Button("Отменить применение") { pendingSoundRequest = nil }
+                                .font(.footnote)
+                        }
+                        Text("По умолчанию щелчки HayKeys включены. Также включите звук отклика клавиатуры в настройках iPhone: Звуки, тактильные сигналы → Отклик клавиатуры → Звук. Беззвучный режим может заглушать щелчки. Настройки других клавиатур HayKeys не меняет.")
+                            .font(.footnote).foregroundColor(.secondary)
+                        SoundSettingsField(request: pendingSoundRequest) { request in
+                            guard pendingSoundRequest?.id == request.id else { return }
+                            soundStatus = request.enabled ? "Подтверждено HayKeys: звук включён." : "Подтверждено HayKeys: звук выключен."
+                            pendingSoundRequest = nil
+                        }
+                        .frame(height: 1).accessibilityHidden(true)
+                    }
+                    .padding(18).background(Color(.secondarySystemGroupedBackground)).cornerRadius(18)
 
                     NavigationLink {
                         ClipboardHistoryView(store: historyStore)
@@ -245,6 +277,60 @@ struct ClipboardHistoryView: View {
         .alert("Скопировано", isPresented: $copied) { Button("ОК", role: .cancel) {} }
         .confirmationDialog("Удалить всю историю?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { store.clear() }
+        }
+    }
+}
+
+/// Dedicated first responder used only while the user explicitly applies a setting.
+/// The nonce acknowledgement is written by HayKeys itself, not inferred from the app toggle.
+struct SoundSettingsField: UIViewRepresentable {
+    let request: SoundSettingsRequest?
+    let onApplied: (SoundSettingsRequest) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.textColor = .clear
+        field.tintColor = .clear
+        field.isAccessibilityElement = false
+        field.autocorrectionType = .no
+        field.spellCheckingType = .no
+        field.autocapitalizationType = .none
+        field.smartQuotesType = .no
+        field.smartDashesType = .no
+        field.smartInsertDeleteType = .no
+        field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
+        return field
+    }
+
+    func updateUIView(_ field: UITextField, context: Context) {
+        context.coordinator.parent = self
+        guard let request else {
+            context.coordinator.armedID = nil
+            field.resignFirstResponder()
+            field.text = ""
+            return
+        }
+        guard context.coordinator.armedID != request.id else { return }
+        context.coordinator.armedID = request.id
+        field.text = request.payload
+        DispatchQueue.main.async { [weak field] in
+            guard let field, context.coordinator.armedID == request.id else { return }
+            field.becomeFirstResponder()
+            field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
+            field.reloadInputViews()
+        }
+    }
+
+    final class Coordinator: NSObject {
+        var parent: SoundSettingsField
+        var armedID: UUID?
+        init(parent: SoundSettingsField) { self.parent = parent }
+        @objc func changed(_ field: UITextField) {
+            guard let request = parent.request,
+                  field.text == request.acknowledgement else { return }
+            DispatchQueue.main.async { self.parent.onApplied(request) }
         }
     }
 }

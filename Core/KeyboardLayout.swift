@@ -43,10 +43,10 @@ struct KeyboardGeometry {
     var narrow: Bool { width < 350 }
     var sideInset: Double { 6 }
     var keyGap: Double { landscape ? 6 : (narrow ? 4 : 5) }
-    var rowGap: Double { landscape ? 6 : (narrow ? 7 : 8) }
-    var keyHeight: Double { landscape ? 30 : (narrow ? 40 : 42) }
+    var rowGap: Double { 6 }
+    var keyHeight: Double { landscape ? 30 : 38 }
     var topInset: Double { landscape ? 8 : 16 }
-    var bottomInset: Double { 2 }
+    var bottomInset: Double { 0 }
     var fontSize: Double { landscape ? 21 : (narrow ? 20 : 22) }
     var preferredHeight: Double { topInset + 5 * keyHeight + 4 * rowGap + bottomInset }
     var keyWidth: Double { max(0, (width - 2 * sideInset - 11 * keyGap) / 12) }

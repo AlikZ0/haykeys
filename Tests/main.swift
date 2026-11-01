@@ -31,9 +31,9 @@ for (width, landscape) in [(320.0, false), (375.0, false), (390.0, false), (402.
     expect(abs(available - middle) < 0.001, "Eleven-key row keeps the same key width and stays centered")
     expect(geometry.inset(for: 12) == 0, "Full-width rows need no spacer")
 }
-expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 260, "No suggestion bar or extra utility footer on a modern iPhone")
-expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 246, "Compact iPhone layout")
-expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 184, "Landscape layout")
+expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 230, "No suggestion bar or extra utility footer on a modern iPhone")
+expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 230, "Compact iPhone layout")
+expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 182, "Landscape layout")
 
 // Regression: a field's light/default request must not override a dark interface.
 expect(KeyboardTheme.resolve(interfaceIsDark: true, fieldRequestsDark: false) == .dark, "Dark interface wins over light/default field request")
@@ -85,7 +85,7 @@ expect(KeyboardLayout.rows(for: .numbers).flatMap { $0 }.contains("-"), "Hyphen 
 for (width, landscape) in [(320.0, false), (402.0, false), (720.0, true)] {
     let layout = KeyboardGeometry(width: width, landscape: landscape)
     expect(layout.topInset >= 8, "Top row has breathing room in each orientation")
-    expect(layout.bottomInset == 2, "Extension does not add an extra bottom footer")
+    expect(layout.bottomInset == 0, "Extension does not add an extra bottom footer")
     let keyArea = layout.preferredHeight - layout.topInset - layout.bottomInset
     expect(keyArea == 5 * layout.keyHeight + 4 * layout.rowGap, "Vertical budget fits all five rows without stretching")
 }
@@ -109,4 +109,16 @@ history.remove(id: removed)
 expect(history.entries.count == 99 && !history.entries.contains(where: { $0.id == removed }), "Delete one entry")
 history.clear()
 expect(history.entries.isEmpty, "Clear all entries")
+expect(KeyboardSettings.soundEnabled(stored: nil), "Clicks are enabled on a fresh keyboard installation")
+expect(!KeyboardSettings.soundEnabled(stored: false), "Explicit mute persists")
+expect(KeyboardSettings.soundEnabled(stored: true), "Sound can be enabled again")
+for enabled in [true, false] {
+    let request = SoundSettingsRequest(enabled: enabled)
+    expect(SoundSettingsRequest.parse(request.payload) == request, "Sound transaction round-trip")
+    expect(SoundSettingsRequest.parse(request.acknowledgement) == nil, "Acknowledgement cannot be reapplied as a request")
+    expect(SoundSettingsRequest.parse(request.payload + "typing") == nil, "Ordinary surrounding text is never parsed as settings")
+}
+expect(SoundSettingsRequest.parse("~HayKeys.Sound.v1|invalid|1~") == nil, "Reject invalid nonce")
+expect(SoundSettingsRequest.parse("hello") == nil, "Normal user text is unaffected")
+expect(SoundSettingsRequest.parse("~HayKeys.Sound.v1|00000000-0000-0000-0000-000000000000|2~") == nil, "Reject invalid boolean")
 print("PASS: \(assertions) core checks")
