@@ -46,3 +46,13 @@ struct KeyboardState {
         }
     }
 }
+
+/// A field may request a light keyboard even while its surrounding UI is dark.
+/// Keep the extension dark whenever the interface or the field requests dark.
+enum KeyboardTheme: Equatable {
+    case light, dark
+
+    static func resolve(interfaceIsDark: Bool, fieldRequestsDark: Bool) -> KeyboardTheme {
+        interfaceIsDark || fieldRequestsDark ? .dark : .light
+    }
+}

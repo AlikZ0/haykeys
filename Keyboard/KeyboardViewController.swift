@@ -3,6 +3,7 @@ import UIKit
 final class KeyboardViewController: UIInputViewController {
     private enum SuggestionMode: Equatable { case completion, currentWord, phrase, symbol }
     private var state = KeyboardState()
+    private var appliedTheme: KeyboardTheme?
     private var geometry = KeyboardGeometry(width: 402, landscape: false)
     private let root = UIStackView()
     private var suggestionRow = UIStackView()
@@ -41,6 +42,12 @@ final class KeyboardViewController: UIInputViewController {
         refresh()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        refresh()
+        refreshAfterProxyUpdate()
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         stopDeleting()
         super.viewWillDisappear(animated)
@@ -49,6 +56,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         guard view.bounds.width > 0 else { return }
+        if appliedTheme != resolvedTheme { refresh() }
         if showsGlobe != needsInputModeSwitchKey {
             buildKeyboard()
             return
@@ -69,11 +77,19 @@ final class KeyboardViewController: UIInputViewController {
     override func textWillChange(_ textInput: UITextInput?) {
         super.textWillChange(textInput)
         applyInputTraits()
+        refresh()
+        refreshAfterProxyUpdate()
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         refresh()
+    }
+
+    override func selectionDidChange(_ textInput: UITextInput?) {
+        super.selectionDidChange(textInput)
+        refresh()
+        refreshAfterProxyUpdate()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -348,11 +364,22 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    private var resolvedTheme: KeyboardTheme {
+        let interfaceIsDark = traitCollection.userInterfaceStyle == .dark ||
+            view.traitCollection.userInterfaceStyle == .dark ||
+            view.window?.traitCollection.userInterfaceStyle == .dark
+        return KeyboardTheme.resolve(
+            interfaceIsDark: interfaceIsDark,
+            fieldRequestsDark: textDocumentProxy.keyboardAppearance == .dark
+        )
+    }
+
     private func refresh() {
         guard isViewLoaded else { return }
-        let dark = textDocumentProxy.keyboardAppearance == .dark ||
-            (textDocumentProxy.keyboardAppearance != .light && traitCollection.userInterfaceStyle == .dark)
-        view.backgroundColor = dark ? UIColor(white: 0.17, alpha: 1)
+        let theme = resolvedTheme
+        appliedTheme = theme
+        let dark = theme == .dark
+        view.backgroundColor = dark ? UIColor(white: 0.12, alpha: 1)
             : UIColor(red: 0.885, green: 0.889, blue: 0.907, alpha: 1)
         for key in keyButtons {
             key.isDark = dark

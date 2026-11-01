@@ -58,9 +58,9 @@ final class KeyButton: UIButton {
 
     func updateColors() {
         let foreground: UIColor = isActive ? .black : (isDark ? .white : .black)
-        let regular = isDark ? UIColor(white: 0.38, alpha: 1) : .white
-        let special = isDark ? UIColor(white: 0.25, alpha: 1) : .white
-        let pressed = isDark ? UIColor(white: 0.55, alpha: 1) : UIColor(white: 0.78, alpha: 1)
+        let regular = isDark ? UIColor(white: 0.29, alpha: 1) : .white
+        let special = isDark ? UIColor(white: 0.21, alpha: 1) : .white
+        let pressed = isDark ? UIColor(white: 0.42, alpha: 1) : UIColor(white: 0.78, alpha: 1)
         backgroundColor = isHighlighted ? pressed : (isActive ? .white : (isSpecial ? special : regular))
         layer.shadowOpacity = isDark ? 0 : 0.12
         setTitleColor(foreground, for: .normal)

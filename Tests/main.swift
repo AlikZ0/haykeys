@@ -35,6 +35,12 @@ expect(KeyboardGeometry(width: 402, landscape: false).preferredHeight == 290, "N
 expect(KeyboardGeometry(width: 320, landscape: false).preferredHeight == 271, "Compact iPhone layout")
 expect(KeyboardGeometry(width: 874, landscape: true).preferredHeight == 212, "Landscape layout")
 
+// Regression: a field's light/default request must not override a dark interface.
+expect(KeyboardTheme.resolve(interfaceIsDark: true, fieldRequestsDark: false) == .dark, "Dark interface wins over light/default field request")
+expect(KeyboardTheme.resolve(interfaceIsDark: true, fieldRequestsDark: true) == .dark, "Both dark signals")
+expect(KeyboardTheme.resolve(interfaceIsDark: false, fieldRequestsDark: true) == .dark, "Field requests dark inside light interface")
+expect(KeyboardTheme.resolve(interfaceIsDark: false, fieldRequestsDark: false) == .light, "Light mode returns after leaving dark mode")
+
 var state = KeyboardState()
 expect(state.output(for: "ա") == "ա", "Lowercase by default")
 expect(state.output(for: KeyboardLayout.ligature) == "և", "և stays available without Shift or suggestions")
