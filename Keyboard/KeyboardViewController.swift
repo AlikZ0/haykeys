@@ -1,16 +1,20 @@
 import UIKit
 
+final class SoundInputView: UIInputView, UIInputViewAudioFeedback {
+    var clicksEnabled = true
+    var enableInputClicksWhenVisible: Bool { clicksEnabled }
+}
+
 final class KeyboardViewController: UIInputViewController {
-    private enum SuggestionMode: Equatable { case completion, currentWord, phrase, symbol }
     private var state = KeyboardState()
+    private var applyingSoundSettings = false
+    private var renderCache = KeyboardRenderCache()
+    private var lastReturnType: UIReturnKeyType?
+    private var contextRefreshPending = false
+    private var settingsCheckPending = false
     private var appliedTheme: KeyboardTheme?
     private var geometry = KeyboardGeometry(width: 402, landscape: false)
     private let root = UIStackView()
-    private var suggestionRow = UIStackView()
-    private var suggestionButtons: [UIButton] = []
-    private var suggestions: [String] = []
-    private var suggestionMode: SuggestionMode = .phrase
-    private let initialPhrases = ["Բարև", "Շնորհակալություն", "Այո"]
     private var keyRows: [UIStackView] = []
     private var keyButtons: [KeyButton] = []
     private var shiftButton: KeyButton?
@@ -18,34 +22,42 @@ final class KeyboardViewController: UIInputViewController {
     private var globeButton: KeyButton?
     private var spaceLanguageLabel: UILabel?
     private var bottomRow: UIStackView?
-    private var suggestionHeightConstraint: NSLayoutConstraint?
     private var bottomInsetConstraint: NSLayoutConstraint?
+    private var topInsetConstraint: NSLayoutConstraint?
     private var showsGlobe = false
     private var heightConstraint: NSLayoutConstraint?
     private var deleteTimer: Timer?
     private var previousKeyboardType: UIKeyboardType?
     private var cursorX: CGFloat = 0
 
+    override func loadView() {
+        let keyboardView = SoundInputView(frame: .zero, inputViewStyle: .keyboard)
+        keyboardView.allowsSelfSizing = true
+        keyboardView.backgroundColor = .clear
+        inputView = keyboardView
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         primaryLanguage = "hy"
-        view.layer.cornerRadius = 20
-        view.layer.cornerCurve = .continuous
-        view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        view.clipsToBounds = true
-        buildKeyboard()
+        applyInputTraits()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        (inputView as? SoundInputView)?.clicksEnabled = KeyboardSettings.soundEnabled(
+            stored: UserDefaults.standard.object(forKey: KeyboardSettings.soundKey) as? Bool
+        )
         applyInputTraits()
+        _ = applySoundSettingsIfSelected()
         refresh()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        _ = applySoundSettingsIfSelected()
         refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -63,12 +75,18 @@ final class KeyboardViewController: UIInputViewController {
         }
         // Face ID iPhones provide the globe/dictation area outside this extension.
         let compact = traitCollection.verticalSizeClass == .compact || view.bounds.width > 560
-        let next = KeyboardGeometry(width: Double(view.bounds.width), landscape: compact)
+        // The landscape host reserves horizontal space for the system controls.
+        // Use the same safe horizontal bounds for key placement and width calculations.
+        let availableWidth = max(0, view.bounds.width - view.safeAreaInsets.left - view.safeAreaInsets.right)
+        guard availableWidth > 0 else { return }
+        let next = KeyboardGeometry(width: Double(availableWidth), landscape: compact)
         if geometry.width != next.width || geometry.landscape != next.landscape {
             geometry = next
             updateGeometry()
         }
-        let height = CGFloat(geometry.preferredHeight) + view.safeAreaInsets.bottom
+        // The system already owns the globe/microphone area beneath this view.
+        // Adding its bottom inset here creates an extra empty strip.
+        let height = CGFloat(geometry.preferredHeight)
         if let heightConstraint, abs(heightConstraint.constant - height) > 0.5 {
             heightConstraint.constant = height
         }
@@ -77,19 +95,17 @@ final class KeyboardViewController: UIInputViewController {
     override func textWillChange(_ textInput: UITextInput?) {
         super.textWillChange(textInput)
         applyInputTraits()
-        refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh()
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
-        refresh()
+        scheduleContextRefresh()
     }
 
     override func selectionDidChange(_ textInput: UITextInput?) {
         super.selectionDidChange(textInput)
-        refresh()
-        refreshAfterProxyUpdate()
+        scheduleContextRefresh(checkSettings: true)
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -112,13 +128,12 @@ final class KeyboardViewController: UIInputViewController {
 
     private func buildKeyboard() {
         stopDeleting()
+        renderCache.reset()
+        lastReturnType = nil
         root.removeFromSuperview()
         root.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        suggestionRow.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        suggestionRow = UIStackView()
         keyRows.removeAll()
         keyButtons.removeAll()
-        suggestionButtons.removeAll()
         shiftButton = nil
         returnButton = nil
         globeButton = nil
@@ -129,14 +144,17 @@ final class KeyboardViewController: UIInputViewController {
         root.spacing = CGFloat(geometry.rowGap)
         root.translatesAutoresizingMaskIntoConstraints = false
         root.semanticContentAttribute = .forceLeftToRight
+        root.insetsLayoutMarginsFromSafeArea = false
         view.addSubview(root)
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6),
-            root.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -6),
-            root.topAnchor.constraint(equalTo: view.topAnchor)
+            root.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 6),
+            root.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -6)
         ])
+        let topInset = root.topAnchor.constraint(equalTo: view.topAnchor, constant: CGFloat(geometry.topInset))
+        topInset.isActive = true
+        topInsetConstraint = topInset
         let bottomInset = root.bottomAnchor.constraint(
-            equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -CGFloat(geometry.bottomInset)
+            equalTo: view.bottomAnchor, constant: -CGFloat(geometry.bottomInset)
         )
         bottomInset.isActive = true
         bottomInsetConstraint = bottomInset
@@ -145,25 +163,6 @@ final class KeyboardViewController: UIInputViewController {
             constraint.priority = UILayoutPriority(999)
             constraint.isActive = true
             heightConstraint = constraint
-        }
-
-        suggestionRow.axis = .horizontal
-        suggestionRow.distribution = .fillEqually
-        suggestionRow.spacing = 1
-        root.addArrangedSubview(suggestionRow)
-        let suggestionHeight = suggestionRow.heightAnchor.constraint(equalToConstant: CGFloat(geometry.suggestionHeight))
-        suggestionHeight.isActive = true
-        suggestionHeightConstraint = suggestionHeight
-        for index in 0..<3 {
-            let button = UIButton(type: .system)
-            button.tag = index
-            button.titleLabel?.font = .systemFont(ofSize: 16, weight: .regular)
-            button.titleLabel?.adjustsFontSizeToFitWidth = true
-            button.titleLabel?.minimumScaleFactor = 0.65
-            button.accessibilityTraits = .keyboardKey
-            button.addTarget(self, action: #selector(suggestionTapped(_:)), for: .touchUpInside)
-            suggestionRow.addArrangedSubview(button)
-            suggestionButtons.append(button)
         }
 
         for (index, values) in KeyboardLayout.rows(for: state.page).enumerated() {
@@ -213,6 +212,8 @@ final class KeyboardViewController: UIInputViewController {
         space.accessibilityHint = "Удерживайте и двигайте палец для перемещения курсора"
         let cursorGesture = UILongPressGestureRecognizer(target: self, action: #selector(moveCursor(_:)))
         cursorGesture.minimumPressDuration = 0.35
+        cursorGesture.delaysTouchesBegan = false
+        cursorGesture.delaysTouchesEnded = false
         space.addGestureRecognizer(cursorGesture)
         let language = UILabel()
         language.text = "Հայերեն"
@@ -239,19 +240,17 @@ final class KeyboardViewController: UIInputViewController {
             globe.setImage(UIImage(systemName: "globe"), for: .normal)
             globe.accessibilityLabel = "Сменить клавиатуру"
             globe.accessibilityHint = "Удерживайте, чтобы открыть список клавиатур"
+            globe.addTarget(self, action: #selector(playKeyClick), for: .touchDown)
             globe.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
             bottom.addArrangedSubview(globe)
-            globe.widthAnchor.constraint(equalTo: mode.widthAnchor).isActive = true
+            globe.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 0.5).isActive = true
             globeButton = globe
             keyButtons.append(globe)
         }
-        let ligature = makeKey(action: .insert(KeyboardLayout.ligature))
-        ligature.accessibilityLabel = "և — армянская лигатура"
-        [ligature, space, lineBreak].forEach { bottom.addArrangedSubview($0) }
+        [space, lineBreak].forEach { bottom.addArrangedSubview($0) }
         NSLayoutConstraint.activate([
-            ligature.widthAnchor.constraint(equalTo: mode.widthAnchor),
-            space.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 4.5),
-            lineBreak.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 2.2)
+            space.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 2.25),
+            lineBreak.widthAnchor.constraint(equalTo: mode.widthAnchor, multiplier: 1.1)
         ])
         root.addArrangedSubview(bottom)
         if let first = keyRows.first {
@@ -264,8 +263,8 @@ final class KeyboardViewController: UIInputViewController {
 
     private func updateGeometry() {
         root.spacing = CGFloat(geometry.rowGap)
-        suggestionHeightConstraint?.constant = CGFloat(geometry.suggestionHeight)
         bottomInsetConstraint?.constant = -CGFloat(geometry.bottomInset)
+        topInsetConstraint?.constant = CGFloat(geometry.topInset)
         let rows = KeyboardLayout.rows(for: state.page)
         for (index, row) in keyRows.enumerated() {
             let count = rows[index].count + (index == 3 ? 2 : 0)
@@ -308,6 +307,8 @@ final class KeyboardViewController: UIInputViewController {
                 target: self, action: #selector(insertAlternate(_:))
             )
             alternateGesture.minimumPressDuration = 0.4
+            alternateGesture.delaysTouchesBegan = false
+            alternateGesture.delaysTouchesEnded = false
             key.addGestureRecognizer(alternateGesture)
         }
         keyButtons.append(key)
@@ -318,10 +319,12 @@ final class KeyboardViewController: UIInputViewController {
         guard gesture.state == .began,
               let key = gesture.view as? KeyButton,
               let text = key.alternateText else { return }
+        playKeyClick()
         insert(state.output(for: text))
     }
 
     @objc private func keyTapped(_ sender: KeyButton) {
+        playKeyClick()
         guard let action = sender.keyAction else { return }
         switch action {
         case .insert(let text): insert(state.output(for: text))
@@ -339,29 +342,28 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func insert(_ text: String) {
+        let previousShift = state.shift
         textDocumentProxy.insertText(text)
         state.didInsert(text)
-        refresh()
-        refreshAfterProxyUpdate()
+        if previousShift != state.shift { refresh() }
     }
 
-    @objc private func suggestionTapped(_ sender: UIButton) {
-        guard suggestions.indices.contains(sender.tag) else { return }
-        let candidate = suggestions[sender.tag]
-        switch suggestionMode {
-        case .completion:
-            guard let suffix = WordSuggestions.suffix(
-                for: candidate, context: textDocumentProxy.documentContextBeforeInput
-            ) else { return }
-            insert(suffix)
-        case .currentWord:
-            guard WordSuggestions.currentPrefix(in: textDocumentProxy.documentContextBeforeInput) == candidate else { return }
-            insert(" ")
-        case .phrase:
-            insert((state.shift == .locked ? candidate.uppercased() : candidate) + " ")
-        case .symbol:
-            insert(candidate)
-        }
+    @objc private func playKeyClick() {
+        guard (inputView as? SoundInputView)?.clicksEnabled == true else { return }
+        UIDevice.current.playInputClick()
+    }
+
+    private func applySoundSettingsIfSelected() -> Bool {
+        guard !applyingSoundSettings,
+              let selected = textDocumentProxy.selectedText,
+              let request = SoundSettingsRequest.parse(selected) else { return false }
+        applyingSoundSettings = true
+        defer { applyingSoundSettings = false }
+        UserDefaults.standard.set(request.enabled, forKey: KeyboardSettings.soundKey)
+        (inputView as? SoundInputView)?.clicksEnabled = request.enabled
+        // Replaces only the selected transaction, never the surrounding document.
+        textDocumentProxy.insertText(request.acknowledgement)
+        return true
     }
 
     private var resolvedTheme: KeyboardTheme {
@@ -378,28 +380,39 @@ final class KeyboardViewController: UIInputViewController {
         guard isViewLoaded else { return }
         let theme = resolvedTheme
         appliedTheme = theme
+        let changes = renderCache.update(KeyboardRenderSnapshot(page: state.page, shift: state.shift, theme: theme))
         let dark = theme == .dark
-        view.backgroundColor = dark ? UIColor(white: 0.12, alpha: 1)
-            : UIColor(red: 0.885, green: 0.889, blue: 0.907, alpha: 1)
-        for key in keyButtons {
-            key.isDark = dark
-            if case .insert(let value)? = key.keyAction {
-                let output = state.output(for: value)
-                key.setTitle(output, for: .normal)
-                key.accessibilityLabel = output
+        if changes.colors { view.backgroundColor = .clear }
+        if changes.labels || changes.colors {
+            for key in keyButtons {
+                if changes.labels, case .insert(let value)? = key.keyAction {
+                    let output = state.output(for: value)
+                    key.setTitle(output, for: .normal)
+                    key.accessibilityLabel = output
+                }
+                if changes.colors {
+                    key.isDark = dark
+                    key.updateColors()
+                }
             }
-            key.updateColors()
         }
-        let shiftIcon = state.shift == .locked ? "capslock.fill" :
-            (state.shift == .once ? "shift.fill" : "shift")
-        shiftButton?.setImage(UIImage(systemName: shiftIcon), for: .normal)
-        shiftButton?.isActive = state.shift != .off
-        shiftButton?.accessibilityValue = state.shift == .locked ? "Caps Lock" :
-            (state.shift == .once ? "Одна заглавная буква" : "Строчные буквы")
-        shiftButton?.updateColors()
-        spaceLanguageLabel?.textColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(0.28)
-        updateReturnLabel()
-        updateSuggestions(dark: dark)
+        if changes.shift {
+            let shiftIcon = state.shift == .locked ? "capslock.fill" :
+                (state.shift == .once ? "shift.fill" : "shift")
+            shiftButton?.setImage(UIImage(systemName: shiftIcon), for: .normal)
+            shiftButton?.isActive = state.shift != .off
+            shiftButton?.accessibilityValue = state.shift == .locked ? "Caps Lock" :
+                (state.shift == .once ? "Одна заглавная буква" : "Строчные буквы")
+            shiftButton?.updateColors()
+        }
+        if changes.colors {
+            spaceLanguageLabel?.textColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(0.28)
+        }
+        let returnType = textDocumentProxy.returnKeyType ?? .default
+        if lastReturnType != returnType {
+            lastReturnType = returnType
+            updateReturnLabel()
+        }
     }
 
     private func updateReturnLabel() {
@@ -416,35 +429,19 @@ final class KeyboardViewController: UIInputViewController {
         returnButton?.setImage(title == nil ? UIImage(systemName: "return") : nil, for: .normal)
     }
 
-    private func updateSuggestions(dark: Bool) {
-        let context = textDocumentProxy.documentContextBeforeInput
-        let prefix = WordSuggestions.currentPrefix(in: context)
-        let matches = WordSuggestions.matches(in: context)
-        if state.page != .letters {
-            suggestionMode = .symbol
-            suggestions = ["։", "՝", "՞"]
-        } else if !matches.isEmpty {
-            suggestionMode = .completion
-            suggestions = matches
-        } else if !prefix.isEmpty {
-            suggestionMode = .currentWord
-            suggestions = [prefix]
-        } else {
-            suggestionMode = .phrase
-            suggestions = initialPhrases
+    private func scheduleContextRefresh(checkSettings: Bool = false) {
+        settingsCheckPending = settingsCheckPending || checkSettings
+        guard !contextRefreshPending else { return }
+        contextRefreshPending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.contextRefreshPending = false
+            let checkSettings = self.settingsCheckPending
+            self.settingsCheckPending = false
+            guard self.isViewLoaded, self.view.window != nil else { return }
+            if checkSettings, self.applySoundSettingsIfSelected() { return }
+            self.refresh()
         }
-        for (index, button) in suggestionButtons.enumerated() {
-            let exists = suggestions.indices.contains(index)
-            let title = exists ? suggestions[index] : ""
-            button.setTitle(title, for: .normal)
-            button.setTitleColor(dark ? .white : .black, for: .normal)
-            button.isEnabled = exists
-            button.accessibilityLabel = suggestionMode == .completion ? "Дополнить: \(title)" : title
-        }
-    }
-
-    private func refreshAfterProxyUpdate() {
-        DispatchQueue.main.async { [weak self] in self?.refresh() }
     }
 
     @objc private func startDeleting() {
@@ -460,8 +457,8 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func deleteOneCharacter() {
+        playKeyClick()
         textDocumentProxy.deleteBackward()
-        refreshAfterProxyUpdate()
     }
 
     @objc private func stopDeleting() {
@@ -484,7 +481,6 @@ final class KeyboardViewController: UIInputViewController {
             if steps != 0 {
                 textDocumentProxy.adjustTextPosition(byCharacterOffset: steps)
                 cursorX += CGFloat(steps) * 10
-                refreshAfterProxyUpdate()
             }
         case .ended, .cancelled, .failed:
             spaceLanguageLabel?.text = "Հայերեն"
